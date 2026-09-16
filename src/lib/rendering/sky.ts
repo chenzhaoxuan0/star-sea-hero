@@ -28,8 +28,8 @@ export function createSky(
   initialSelectedId = "",
   initialMilkyWayMatrix?: THREE.Matrix4,
 ): SkyHandle {
-  // 1. Sky Dome Mesh
-  const skyGeometry = new THREE.SphereGeometry(500, 48, 32);
+  // 1. Sky Dome Mesh with smooth celestial curvature
+  const skyGeometry = new THREE.SphereGeometry(500, 64, 48);
 
   const skyMaterial = new THREE.ShaderMaterial({
     vertexShader: SkyShader.vertexShader,
@@ -40,15 +40,20 @@ export function createSky(
     depthTest: false,
   });
 
-  // Authentic Stellarium All-Sky Milky Way Panorama
+  // Ultra High-Resolution Astrophotography Milky Way Panorama (4K / 8K with 16x Anisotropic Filtering)
   const textureLoader = new THREE.TextureLoader();
-  const milkyWayTexture = textureLoader.load("/textures/milkyway.png");
+  const texturePath =
+    quality.starLimit >= 1800
+      ? "/textures/milkyway_8k_eq.webp"
+      : "/textures/milkyway_4k_eq.webp";
+  const milkyWayTexture = textureLoader.load(texturePath);
   milkyWayTexture.wrapS = THREE.RepeatWrapping;
   milkyWayTexture.wrapT = THREE.ClampToEdgeWrapping;
   milkyWayTexture.colorSpace = THREE.SRGBColorSpace;
   milkyWayTexture.generateMipmaps = true;
   milkyWayTexture.minFilter = THREE.LinearMipmapLinearFilter;
   milkyWayTexture.magFilter = THREE.LinearFilter;
+  milkyWayTexture.anisotropy = 16;
   skyMaterial.uniforms.uMilkyWayMap.value = milkyWayTexture;
 
   const milkyWayMatrix = initialMilkyWayMatrix

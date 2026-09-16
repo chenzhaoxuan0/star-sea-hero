@@ -32,11 +32,11 @@ export default function StarSeaHero() {
   // Auto-lapse playback state
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Nocturnal clouds & mist settings
+  // Nocturnal clouds & mist settings (default to 0.0 clear sky so Milky Way is completely unobstructed)
   const [cloudSettings, setCloudSettings] = useState<CloudSettings>({
-    density: 1.0,
-    elevation: 0.32,
-    coverage: 0.55,
+    density: 0.0,
+    elevation: 0.20,
+    coverage: 0.40,
   });
 
   const handleReady = useCallback(() => {

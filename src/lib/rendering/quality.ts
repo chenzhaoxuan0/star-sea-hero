@@ -10,23 +10,23 @@ export type QualitySettings = {
 
 const SETTINGS: Record<QualityLevel, QualitySettings> = {
   high: {
-    starLimit: 2200,
+    starLimit: 2400,
     oceanSegments: 96,
-    reflectionScale: 0.7,
-    maxPixelRatio: 1.75,
-    targetFps: 55,
+    reflectionScale: 0.85,
+    maxPixelRatio: 2.0,
+    targetFps: 60,
   },
   balanced: {
-    starLimit: 1200,
+    starLimit: 1400,
     oceanSegments: 64,
-    reflectionScale: 0.5,
-    maxPixelRatio: 1.35,
-    targetFps: 45,
+    reflectionScale: 0.65,
+    maxPixelRatio: 1.5,
+    targetFps: 50,
   },
   low: {
-    starLimit: 520,
+    starLimit: 600,
     oceanSegments: 32,
-    reflectionScale: 0.25,
+    reflectionScale: 0.4,
     maxPixelRatio: 1,
     targetFps: 30,
   },

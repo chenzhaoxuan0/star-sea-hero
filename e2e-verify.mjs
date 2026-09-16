@@ -16,7 +16,7 @@ async function main() {
     ]
   });
   const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 }
+    viewport: { width: 2560, height: 1440 }
   });
   const page = await context.newPage();
 
@@ -40,15 +40,15 @@ async function main() {
   await page.waitForSelector('canvas.is-ready', { timeout: 20000 });
   console.log('Canvas is-ready selector matched!');
 
-  // Wait 3 seconds for texture loading and initial rendering
-  await page.waitForTimeout(3000);
+  // Wait 3.5 seconds for 8K/4K texture loading and initial rendering
+  await page.waitForTimeout(3500);
 
-  // 1. Initial view: calm ocean with starry mirror and Stellarium Milky Way
+  // 1. Initial view: calm ocean with starry mirror and ultra-HD Milky Way
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_initial_calm_sea_reflection.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_initial_calm_sea_reflection.png'),
     fullPage: false
   });
-  console.log('Captured 1: v11_initial_calm_sea_reflection.png');
+  console.log('Captured 1: v12_initial_calm_sea_reflection.png');
 
   // 2. Drag to look up into the deep celestial sphere (Milky Way view)
   const canvas = page.locator('canvas.star-sea-canvas');
@@ -59,53 +59,53 @@ async function main() {
     // Drag down to pitch camera up towards high zenith
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(startX + 180, startY + 280, { steps: 25 });
+    await page.mouse.move(startX + 240, startY + 360, { steps: 30 });
     await page.mouse.up();
   }
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1800);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_milky_way_sky_dome.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_milky_way_sky_dome_hd.png'),
     fullPage: false
   });
-  console.log('Captured 2: v11_milky_way_sky_dome.png');
+  console.log('Captured 2: v12_milky_way_sky_dome_hd.png');
 
   // 3. Toggle ocean to wavy mode
   const oceanBtn = page.getByRole('button', { name: /海面：/ });
   await oceanBtn.click();
   await page.waitForTimeout(1500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_wavy_ocean_mode.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_wavy_ocean_mode.png'),
     fullPage: false
   });
-  console.log('Captured 3: v11_wavy_ocean_mode.png');
+  console.log('Captured 3: v12_wavy_ocean_mode.png');
 
   // 4. Select Sagittarius (Teapot at Galactic Core)
   const constellSelect = page.locator('select[aria-label="选择星宿天区"]');
   await constellSelect.selectOption('sagittarius');
   await page.waitForTimeout(2500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_constellation_sagittarius_core.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_constellation_sagittarius_core.png'),
     fullPage: false
   });
-  console.log('Captured 4: v11_constellation_sagittarius_core.png');
+  console.log('Captured 4: v12_constellation_sagittarius_core.png');
 
-  // 5. Select Orion (Hunter)
-  await constellSelect.selectOption('orion');
+  // 5. Select Cygnus (Northern Cross in Milky Way)
+  await constellSelect.selectOption('cygnus');
   await page.waitForTimeout(2500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_constellation_orion.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_constellation_cygnus.png'),
     fullPage: false
   });
-  console.log('Captured 5: v11_constellation_orion.png');
+  console.log('Captured 5: v12_constellation_cygnus.png');
 
   // 6. Select Ursa Major (Big Dipper)
   await constellSelect.selectOption('ursa-major');
   await page.waitForTimeout(2500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'v11_constellation_ursa_major.png'),
+    path: path.join(ARTIFACT_DIR, 'v12_constellation_ursa_major.png'),
     fullPage: false
   });
-  console.log('Captured 6: v11_constellation_ursa_major.png');
+  console.log('Captured 6: v12_constellation_ursa_major.png');
 
   console.log('PAGE CONSOLE LOGS COUNT:', consoleLogs.length);
   console.log('PAGE ERRORS COUNT:', errors.length);

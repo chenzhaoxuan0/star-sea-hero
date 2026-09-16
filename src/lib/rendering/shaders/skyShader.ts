@@ -9,11 +9,11 @@ export const SkyShader = {
     sunDirection: { value: new THREE.Vector3(0, -0.02, -1).normalize() },
     milkyWayMatrix: { value: new THREE.Matrix4() },
     uMilkyWayMap: { value: null as THREE.Texture | null },
-    uMilkyWayIntensity: { value: 1.35 },
-    twilightIntensity: { value: 0.45 },
-    uCloudDensity: { value: 1.0 },
-    uCloudElevation: { value: 0.32 },
-    uCloudCoverage: { value: 0.55 },
+    uMilkyWayIntensity: { value: 1.0 },
+    twilightIntensity: { value: 0.40 },
+    uCloudDensity: { value: 0.0 },
+    uCloudElevation: { value: 0.20 },
+    uCloudCoverage: { value: 0.40 },
     uCloudOffset: { value: new THREE.Vector2(0, 0) },
   },
 
@@ -158,18 +158,14 @@ export const SkyShader = {
 
         vec4 mwTex = texture2D(uMilkyWayMap, vec2(u, v));
 
-        // Atmospheric extinction towards horizon: dimmer near horizon, fully visible above elevation 0.08
-        float mwExtinction = smoothstep(0.008, 0.09, elevation);
+        // Atmospheric extinction towards horizon: dimmer near horizon, fully visible above elevation 0.07
+        float mwExtinction = smoothstep(0.006, 0.075, elevation);
 
         // Astrophotography color grading:
-        // Enhance core luminosity and faint stardust clouds with subtle dynamic range expansion
+        // Film-like tonal compression: preserves intricate stardust filaments and dark rifts without blown-out clipping
         vec3 mwRgb = mwTex.rgb;
-        float mwLuma = dot(mwRgb, vec3(0.299, 0.587, 0.114));
-        
-        // Gentle gamma correction for rich stellar contrast
-        vec3 mwGraded = pow(mwRgb, vec3(1.15)) * 1.40;
-        // Faint celestial interstellar nebulosity glow
-        mwGraded += vec3(0.02, 0.03, 0.07) * pow(mwLuma, 1.5);
+        vec3 mwGraded = pow(mwRgb, vec3(1.32)) * 1.15;
+        mwGraded = (mwGraded / (vec3(1.0) + mwGraded * 0.28)) * 0.96;
 
         skyColor += mwGraded * (mwExtinction * uMilkyWayIntensity);
       }
