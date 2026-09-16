@@ -129,12 +129,12 @@ export const OceanShader = {
         reflectUv.y += waveN.z * (distortScale * reflectUv.w * grazingDamp);
       }
 
-      // Forward azimuth factor for twilight horizon warmth (matching skyShader)
+      // Forward azimuth factor for celestial horizon airglow (matching skyShader)
       float forwardGlow = dot(normalize(vec2(viewDir.x, viewDir.z)), vec2(0.0, 1.0));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      vec3 cHorizonBase = vec3(0.165, 0.130, 0.225);
-      vec3 twilightWarmth = vec3(0.240, 0.140, 0.120);
-      vec3 horizonAtmosphere = cHorizonBase + twilightWarmth * ((0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
+      vec3 cHorizonBase = vec3(0.088, 0.108, 0.215);
+      vec3 cAirglow = vec3(0.040, 0.070, 0.130);
+      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
 
       // Safe projected sampling with border guard
       vec2 projCoords = reflectUv.xy / reflectUv.w;

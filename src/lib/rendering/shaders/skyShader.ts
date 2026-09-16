@@ -126,26 +126,24 @@ export const SkyShader = {
 
       // 1. Atmosphere base gradient (zenith down to horizon)
       vec3 cZenith       = vec3(0.010, 0.015, 0.038); // Deep cosmic void
-      vec3 cHighSky      = vec3(0.025, 0.038, 0.105); // Deep navy
-      vec3 cMidSky       = vec3(0.055, 0.068, 0.170); // Rich indigo
-      vec3 cIndigoPurple = vec3(0.095, 0.088, 0.210); // Deep twilight
-      vec3 cLavender     = vec3(0.145, 0.115, 0.235); // Soft lavender
-      vec3 cHorizonBase  = vec3(0.165, 0.130, 0.225); // Exact unified nocturnal horizon tone
+      vec3 cHighSky      = vec3(0.022, 0.036, 0.095); // Deep midnight navy
+      vec3 cMidSky       = vec3(0.045, 0.062, 0.155); // Rich nocturnal indigo
+      vec3 cLowSky       = vec3(0.068, 0.082, 0.190); // Soft celestial blue-indigo
+      vec3 cHorizonBase  = vec3(0.088, 0.108, 0.215); // Clean starlit atmospheric airglow (pure night sky, no red/orange)
 
       float h = max(0.0, elevation);
       vec3 skyColor = cZenith;
       skyColor = mix(skyColor, cHighSky,      1.0 - smoothstep(0.48, 0.85, h));
       skyColor = mix(skyColor, cMidSky,       1.0 - smoothstep(0.26, 0.58, h));
-      skyColor = mix(skyColor, cIndigoPurple, 1.0 - smoothstep(0.10, 0.36, h));
-      skyColor = mix(skyColor, cLavender,     1.0 - smoothstep(0.02, 0.18, h));
-      skyColor = mix(skyColor, cHorizonBase,  1.0 - smoothstep(0.00, 0.032, h));
+      skyColor = mix(skyColor, cLowSky,       1.0 - smoothstep(0.08, 0.32, h));
+      skyColor = mix(skyColor, cHorizonBase,  1.0 - smoothstep(0.00, 0.14, h));
 
-      // 2. Horizon Twilight Glow - Soft atmospheric rim radiating from horizon
+      // 2. Horizon Celestial Airglow - Pure ethereal starlit luminescence (zero orange/red)
       float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      float twilightElev = exp(-pow(h * 32.0, 1.25));
-      vec3 twilightWarmth = vec3(0.240, 0.140, 0.120);
-      skyColor += twilightWarmth * (twilightElev * (0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
+      float twilightElev = exp(-pow(h * 28.0, 1.25));
+      vec3 cAirglow = vec3(0.040, 0.070, 0.130);
+      skyColor += cAirglow * (twilightElev * (0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
 
       // 3. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
       if (elevation > 0.005) {
