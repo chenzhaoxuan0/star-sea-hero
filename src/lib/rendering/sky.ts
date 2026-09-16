@@ -308,23 +308,35 @@ export function createSky(
   const updateConstellations = (selectedId: string) => {
     buildLinePositions(selectedId);
 
-    const oldDefault = constellationLines.geometry;
-    const newDefault = new THREE.BufferGeometry();
-    newDefault.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(defaultLines, 3),
-    );
-    constellationLines.geometry = newDefault;
-    oldDefault.dispose();
+    const defAttr = constellationLines.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+    if (defAttr && defAttr.count * 3 === defaultLines.length) {
+      (defAttr.array as Float32Array).set(defaultLines);
+      defAttr.needsUpdate = true;
+    } else {
+      const oldDefault = constellationLines.geometry;
+      const newDefault = new THREE.BufferGeometry();
+      newDefault.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(defaultLines, 3),
+      );
+      constellationLines.geometry = newDefault;
+      oldDefault.dispose();
+    }
 
-    const oldSelected = selectedLines.geometry;
-    const newSelected = new THREE.BufferGeometry();
-    newSelected.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(selectedLinesArray, 3),
-    );
-    selectedLines.geometry = newSelected;
-    oldSelected.dispose();
+    const selAttr = selectedLines.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+    if (selAttr && selAttr.count * 3 === selectedLinesArray.length) {
+      (selAttr.array as Float32Array).set(selectedLinesArray);
+      selAttr.needsUpdate = true;
+    } else {
+      const oldSelected = selectedLines.geometry;
+      const newSelected = new THREE.BufferGeometry();
+      newSelected.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(selectedLinesArray, 3),
+      );
+      selectedLines.geometry = newSelected;
+      oldSelected.dispose();
+    }
 
     // Highlight selected constellation stars
     const sizeAttr = starGeometry.getAttribute("size") as THREE.BufferAttribute | undefined;

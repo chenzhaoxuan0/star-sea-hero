@@ -100,14 +100,21 @@ export default function StarSeaHero() {
     }));
   };
 
-  // Real-time sidereal time advance during Play (1x = 1 min/s, 2x = 2 min/s, etc.)
+  // Continuous sidereal time update callback from StarSeaCanvas 60fps loop
+  const handleObserverDateUpdate = useCallback((dateIso: string) => {
+    setObserver((current) => ({
+      ...current,
+      date: dateIso,
+    }));
+  }, []);
+
+  // Fallback timer only when WebGL 3D canvas is inactive
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!fallback || !isPlaying) return;
 
     const interval = setInterval(() => {
       setObserver((current) => {
         const d = new Date(current.date);
-        // Advance playSpeed minutes every second
         d.setMinutes(d.getMinutes() + playSpeed);
         return {
           ...current,
@@ -117,7 +124,7 @@ export default function StarSeaHero() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, playSpeed]);
+  }, [fallback, isPlaying, playSpeed]);
 
   return (
     <section
@@ -130,6 +137,9 @@ export default function StarSeaHero() {
           selectedId={selectedId}
           waveMode={waveMode}
           cloudSettings={cloudSettings}
+          isPlaying={isPlaying}
+          playSpeed={playSpeed}
+          onObserverDateUpdate={handleObserverDateUpdate}
           onReady={handleReady}
           onError={handleError}
         />

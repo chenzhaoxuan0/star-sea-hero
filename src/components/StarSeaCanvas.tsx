@@ -20,6 +20,9 @@ export default function StarSeaCanvas({
   selectedId,
   waveMode = "calm",
   cloudSettings,
+  isPlaying = false,
+  playSpeed = 1,
+  onObserverDateUpdate,
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
@@ -27,6 +30,9 @@ export default function StarSeaCanvas({
   selectedId: string;
   waveMode?: "calm" | "rippled";
   cloudSettings?: CloudSettings;
+  isPlaying?: boolean;
+  playSpeed?: number;
+  onObserverDateUpdate?: (dateIso: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -42,6 +48,27 @@ export default function StarSeaCanvas({
   observerRef.current = observer;
   const cloudSettingsRef = useRef(cloudSettings);
   cloudSettingsRef.current = cloudSettings;
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const playSpeedRef = useRef(playSpeed);
+  playSpeedRef.current = playSpeed;
+  const onObserverDateUpdateRef = useRef(onObserverDateUpdate);
+  onObserverDateUpdateRef.current = onObserverDateUpdate;
+  const simDateMs = useRef(new Date(observer.date).getTime());
+  const lastUiSyncTime = useRef(0);
+
+  // Sync simulation timestamp when pausing or selecting a new constellation
+  useEffect(() => {
+    if (!isPlaying) {
+      onObserverDateUpdateRef.current?.(new Date(simDateMs.current).toISOString());
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      simDateMs.current = new Date(observer.date).getTime();
+    }
+  }, [selectedId, observer.date, isPlaying]);
 
   // Update wave mode uniform dynamically
   useEffect(() => {
@@ -61,9 +88,12 @@ export default function StarSeaCanvas({
     }
   }, [cloudSettings]);
 
-  // Update stars & Milky Way matrix smoothly when observer time/location changes
+  // Update stars & Milky Way matrix smoothly when observer time/location changes (e.g. from user controls)
   useEffect(() => {
     if (!handleRef.current) return;
+    if (isPlayingRef.current) return; // Handled continuously at 60 FPS in render()
+
+    simDateMs.current = new Date(observer.date).getTime();
     if (catalogRef.current.length > 0) {
       const visibleStars = starsToHorizon(catalogRef.current, observer);
       handleRef.current.updateStars(visibleStars, selectedIdRef.current);
@@ -292,8 +322,40 @@ export default function StarSeaCanvas({
         const render = (now: number) => {
           if (!isVisible || disposed || timedOut) return;
           try {
-            elapsed += Math.min((now - previousTime) / 1000, 0.1);
+            const dt = Math.min((now - previousTime) / 1000, 0.1);
+            elapsed += dt;
             previousTime = now;
+
+            if (isPlayingRef.current && handleRef.current) {
+              // Real-time sidereal continuous progression at 60 FPS
+              // 1x = 1 celestial minute per real second = 60,000 ms per second
+              const advanceMs = dt * (playSpeedRef.current || 1) * 60 * 1000;
+              simDateMs.current += advanceMs;
+
+              const currentObs: Observer = {
+                ...observerRef.current,
+                date: new Date(simDateMs.current).toISOString(),
+              };
+              observerRef.current = currentObs;
+
+              if (catalogRef.current.length > 0) {
+                const visibleStars = starsToHorizon(catalogRef.current, currentObs);
+                handle.updateStars(visibleStars, selectedIdRef.current);
+              }
+              const basis = calculateMilkyWayBasis(currentObs);
+              const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+              const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+              const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+              const mwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
+              handle.updateMilkyWay(mwMat);
+
+              // Throttle datetime picker UI update (every 400ms) to avoid React re-render thrashing
+              if (now - lastUiSyncTime.current > 400) {
+                lastUiSyncTime.current = now;
+                onObserverDateUpdateRef.current?.(currentObs.date);
+              }
+            }
+
             const { yaw, pitch } = view.current;
             handle.camera.lookAt(
               Math.sin(yaw) * Math.cos(pitch),
