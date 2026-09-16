@@ -8,6 +8,7 @@ import {
   TIMEZONE_PRESETS,
   observerDateValue,
 } from "@/data/defaultObserver";
+import { CONSTELLATION_OPTIMAL_MAP } from "@/lib/astronomy/constellationFocus";
 
 export default function StarSeaControls({
   observer,
@@ -44,6 +45,7 @@ export default function StarSeaControls({
 }) {
   const [showCloudPopover, setShowCloudPopover] = useState(false);
   const selected = constellations.find((item) => item.id === selectedId);
+  const optimalInfo = selectedId ? CONSTELLATION_OPTIMAL_MAP[selectedId] : null;
 
   return (
     <div className="star-sea-panel pointer-events-auto absolute bottom-12 left-1/2 z-20 w-[min(94vw,840px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 sm:bottom-10 sm:p-4 backdrop-blur-md">
@@ -322,19 +324,27 @@ export default function StarSeaControls({
 
       {/* Selected Constellation Contextual Description */}
       {selected ? (
-        <div className="mt-2.5 flex items-center justify-between border-t border-white/10 pt-2 text-xs text-white/60">
-          <span>已对准【{selected.nameZh} / {selected.nameEn}】：{selected.descriptionZh}</span>
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-xs text-white/70">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
+            {optimalInfo && (
+              <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2 py-0.5 text-[10px] text-cyan">
+                已自动匹配{optimalInfo.seasonNameZh}最佳视界
+              </span>
+            )}
+            <span className="text-white/60">：{selected.descriptionZh}</span>
+          </div>
           <button
             type="button"
             onClick={() => onSelect("")}
-            className="text-[11px] text-cyan hover:underline"
+            className="shrink-0 text-[11px] text-cyan transition-colors hover:text-cyan/80 hover:underline"
           >
-            重置星空视线
+            重置全天视角
           </button>
         </div>
       ) : (
         <div className="mt-2 text-[11px] text-white/45">
-          拖拽星空自由漫游；点击星宿即可自动推拉平移镜头对准天穹；点击“流转”可观测恒星周日视运动。
+          拖拽星空自由漫游；选择星宿天区可自动跳转至最佳观测经纬度与时间并将镜头居中对准；点击“流转”可观测恒星周日视运动。
         </div>
       )}
     </div>

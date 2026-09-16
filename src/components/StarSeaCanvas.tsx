@@ -8,8 +8,9 @@ import {
   type QualityLevel,
 } from "@/lib/rendering/quality";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
-import { calculateMilkyWayBasis, starsToHorizon } from "@/lib/astronomy/coordinates";
+import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
 import { CONSTELLATIONS } from "@/data/constellations";
+import { CONSTELLATION_OPTIMAL_MAP } from "@/lib/astronomy/constellationFocus";
 import type { CloudSettings, Observer } from "@/types/astronomy";
 import type { SceneHandle } from "@/lib/rendering/scene";
 
@@ -83,53 +84,68 @@ export default function StarSeaCanvas({
     }
   }, [selectedId]);
 
-  // Smooth camera fly-to when a constellation is chosen
+  // Helper to get shortest angular distance
+  const normalizeAngle = (rad: number): number => {
+    let a = rad % (Math.PI * 2);
+    if (a > Math.PI) a -= Math.PI * 2;
+    if (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  };
+
+  // Smooth camera fly-to when a constellation is chosen or reset
   useEffect(() => {
-    if (!handleRef.current || !selectedId) return;
-    const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
-    if (!constellation) return;
+    let targetYaw = 0;
+    let targetPitch = 0.28;
 
-    const starIds = new Set<string>();
-    constellation.segments.forEach(([a, b]) => {
-      starIds.add(a);
-      starIds.add(b);
-    });
+    if (selectedId) {
+      const optimal = CONSTELLATION_OPTIMAL_MAP[selectedId];
+      if (optimal) {
+        const horiz = starToHorizon(
+          { raHours: optimal.raHours, decDegrees: optimal.decDegrees },
+          observerRef.current,
+        );
+        targetYaw = (horiz.azimuth * Math.PI) / 180;
+        targetPitch = Math.max(0.18, Math.min(1.40, (horiz.altitude * Math.PI) / 180));
+      } else {
+        const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
+        if (constellation) {
+          const starIds = new Set<string>();
+          constellation.segments.forEach(([a, b]) => {
+            starIds.add(a);
+            starIds.add(b);
+          });
+          let sumRa = 0;
+          let sumDec = 0;
+          let count = 0;
+          starIds.forEach((id) => {
+            const s = BRIGHT_STARS.find((star) => star.id === id);
+            if (s) {
+              sumRa += s.raHours;
+              sumDec += s.decDegrees;
+              count++;
+            }
+          });
+          if (count > 0) {
+            const horiz = starToHorizon(
+              { raHours: sumRa / count, decDegrees: sumDec / count },
+              observerRef.current,
+            );
+            targetYaw = (horiz.azimuth * Math.PI) / 180;
+            targetPitch = Math.max(0.18, Math.min(1.40, (horiz.altitude * Math.PI) / 180));
+          }
+        }
+      }
+    }
 
-    const vectors: { x: number; y: number; z: number }[] = [];
-    starIds.forEach((id) => {
-      const v = handleRef.current?.starPositions.get(id);
-      if (v) vectors.push(v);
-    });
-
-    if (vectors.length === 0) return;
-
-    // Centroid of the constellation stars
-    let cx = 0;
-    let cy = 0;
-    let cz = 0;
-    vectors.forEach((v) => {
-      cx += v.x;
-      cy += v.y;
-      cz += v.z;
-    });
-    cx /= vectors.length;
-    cy /= vectors.length;
-    cz /= vectors.length;
-
-    const radius = Math.hypot(cx, cy, cz) || 1;
-    const rawPitch = Math.asin(Math.max(-1, Math.min(1, cy / radius)));
-    // Point towards constellation azimuth at an elegant observing altitude
-    const targetPitch = rawPitch < 0.22 ? 0.32 : Math.min(1.2, rawPitch);
-    const targetYaw = Math.atan2(cx, -cz);
+    if (!handleRef.current) {
+      view.current.yaw = targetYaw;
+      view.current.pitch = targetPitch;
+      return;
+    }
 
     const startYaw = view.current.yaw;
     const startPitch = view.current.pitch;
-
-    // Shortest angular route
-    let deltaYaw = (targetYaw - startYaw) % (Math.PI * 2);
-    if (deltaYaw > Math.PI) deltaYaw -= Math.PI * 2;
-    if (deltaYaw < -Math.PI) deltaYaw += Math.PI * 2;
-
+    const deltaYaw = normalizeAngle(targetYaw - startYaw);
     const deltaPitch = targetPitch - startPitch;
     const duration = 1200; // ms
     const startTime = performance.now();

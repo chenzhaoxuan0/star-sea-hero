@@ -10,6 +10,7 @@ import {
   observerFromDateInput,
 } from "@/data/defaultObserver";
 import type { CloudSettings, Observer } from "@/types/astronomy";
+import { getOptimalObserverForConstellation } from "@/lib/astronomy/constellationFocus";
 import StarSeaCanvas from "./StarSeaCanvas";
 import StarSeaControls from "./StarSeaControls";
 import StarSeaFallback from "./StarSeaFallback";
@@ -48,6 +49,18 @@ export default function StarSeaHero() {
     setFallback(true);
     setLoadingState("interactive");
   }, []);
+
+  // When user selects a constellation, automatically jump to its optimal observation season and latitude
+  const handleSelectConstellation = (constellationId: string) => {
+    setSelectedId(constellationId);
+    if (!constellationId) return;
+
+    const optimal = getOptimalObserverForConstellation(constellationId, observer, selectedTimezone);
+    if (optimal) {
+      setSelectedLatitude(optimal.latitudeId);
+      setObserver(optimal.observer);
+    }
+  };
 
   const handleDateChange = (value: string) => {
     if (!value || Number.isNaN(new Date(value).getTime())) return;
@@ -129,7 +142,7 @@ export default function StarSeaHero() {
         observer={observer}
         constellations={CONSTELLATIONS}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={handleSelectConstellation}
         onDateChange={handleDateChange}
         waveMode={waveMode}
         onToggleWaveMode={handleToggleWaveMode}
