@@ -246,11 +246,12 @@ export default function StarSeaControls({
             aria-label="选择星宿天区"
             value={selectedId}
             onChange={(event) => onSelect(event.target.value)}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            style={{ colorScheme: "dark" }}
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
           >
-            <option value="">探索全天星图 (未指定)</option>
+            <option value="" className="bg-[#0b1324] text-white">探索全天星图 (未指定)</option>
             {constellations.map((constellation) => (
-              <option key={constellation.id} value={constellation.id}>
+              <option key={constellation.id} value={constellation.id} className="bg-[#0b1324] text-white">
                 {constellation.nameZh} / {constellation.nameEn}
               </option>
             ))}
@@ -264,10 +265,11 @@ export default function StarSeaControls({
             aria-label="选择观测时区"
             value={selectedTimezone}
             onChange={(event) => onTimezoneChange(event.target.value)}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            style={{ colorScheme: "dark" }}
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
           >
             {TIMEZONE_PRESETS.map((tz) => (
-              <option key={tz.id} value={tz.id}>
+              <option key={tz.id} value={tz.id} className="bg-[#0b1324] text-white">
                 {tz.name}
               </option>
             ))}
@@ -281,10 +283,11 @@ export default function StarSeaControls({
             aria-label="选择观测纬度"
             value={selectedLatitude}
             onChange={(event) => onLatitudeChange(event.target.value)}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            style={{ colorScheme: "dark" }}
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
           >
             {LATITUDE_PRESETS.map((lat) => (
-              <option key={lat.id} value={lat.id}>
+              <option key={lat.id} value={lat.id} className="bg-[#0b1324] text-white">
                 {lat.nameZh}
               </option>
             ))}
@@ -308,7 +311,8 @@ export default function StarSeaControls({
               type="datetime-local"
               value={observerDateValue(observer)}
               onChange={(event) => onDateChange(event.target.value)}
-              className="min-h-10 w-[148px] sm:w-[152px] shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors focus:border-cyan"
+              style={{ colorScheme: "dark" }}
+              className="min-h-10 w-[148px] sm:w-[152px] shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
             />
             {/* Speed Multiplier Dropdown */}
             <select
@@ -316,7 +320,8 @@ export default function StarSeaControls({
               value={playSpeed}
               onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
               title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
-              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer"
+              style={{ colorScheme: "dark" }}
+              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
             >
               <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
               <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>

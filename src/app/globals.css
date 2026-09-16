@@ -40,9 +40,26 @@ button,
 input,
 select {
   font: inherit;
+  color-scheme: dark;
 }
 
 button {
+  cursor: pointer;
+}
+
+select option {
+  background-color: #0b1324 !important;
+  color: #f3f5f8 !important;
+}
+
+input[type="datetime-local"],
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark !important;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
   cursor: pointer;
 }
 
