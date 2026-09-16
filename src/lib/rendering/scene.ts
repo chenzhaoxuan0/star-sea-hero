@@ -24,7 +24,7 @@ export function createScene(
   stars: Array<StarRecord & { horizon: HorizonPosition }> = [],
   constellations: ConstellationDefinition[] = [],
   selectedConstellationId = "",
-  initialWaveMode = 0.0,
+  initialWaveMode = 1.0,
   initialMilkyWayMatrix?: THREE.Matrix4,
 ): SceneHandle {
   const renderer = new THREE.WebGLRenderer({
@@ -62,7 +62,7 @@ export function createScene(
 
   // Perspective camera matching astrophotography composition (~62 deg FOV)
   const aspect = (canvas.clientWidth || window.innerWidth) / Math.max(canvas.clientHeight || window.innerHeight, 1);
-  const camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 5000);
+  const camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 50000);
   camera.position.set(0, 0, 0);
   // Default look direction: camera tilted up towards the starry sky (sky takes ~75-80% of screen)
   camera.lookAt(0, 0.28, -1);

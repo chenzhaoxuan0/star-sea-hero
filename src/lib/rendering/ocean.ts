@@ -13,13 +13,13 @@ export type OceanHandle = {
 };
 
 export function createOcean(quality: QualitySettings): OceanHandle {
-  const size = 6000;
+  const size = 50000;
   const geometry = new THREE.PlaneGeometry(size, size);
 
   const textureResolution = quality.reflectionScale >= 0.7 ? 1024 : 512;
 
   const reflector = new Reflector(geometry, {
-    clipBias: 0.003,
+    clipBias: 0.001,
     textureWidth: textureResolution,
     textureHeight: textureResolution,
     color: 0xffffff,

@@ -24,7 +24,7 @@ export default function StarSeaHero() {
   const [observer, setObserver] = useState<Observer>(DEFAULT_OBSERVER);
 
   // Sea State: "calm" (mirror-like with star reflection) vs "rippled" (silky harmonics)
-  const [waveMode, setWaveMode] = useState<"calm" | "rippled">("calm");
+  const [waveMode, setWaveMode] = useState<"calm" | "rippled">("rippled");
 
   // Timezone & Latitude preset selection
   const [selectedTimezone, setSelectedTimezone] = useState("UTC+8");

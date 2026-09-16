@@ -18,7 +18,7 @@ export default function StarSeaCanvas({
   onError,
   observer,
   selectedId,
-  waveMode = "calm",
+  waveMode = "rippled",
   cloudSettings,
   isPlaying = false,
   playSpeed = 1,

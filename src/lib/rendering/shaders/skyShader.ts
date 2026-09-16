@@ -140,13 +140,12 @@ export const SkyShader = {
       skyColor = mix(skyColor, cLavender,     1.0 - smoothstep(0.02, 0.18, h));
       skyColor = mix(skyColor, cHorizonBase,  1.0 - smoothstep(0.00, 0.032, h));
 
-      // 2. Horizon Twilight Glow - Soft, delicate horizon rim with muted warmth
-      // Peaks slightly above horizon (h = 0.03) and smoothly vanishes at h = 0 to preserve seamless seam
+      // 2. Horizon Twilight Glow - Soft atmospheric rim radiating from horizon
       float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      float twilightElev = smoothstep(0.00, 0.025, h) * exp(-pow(h * 36.0, 1.40));
-      vec3 twilightWarmth = vec3(0.280, 0.150, 0.120);
-      skyColor += twilightWarmth * (twilightElev * (0.35 + 0.65 * azimuthFactor) * 0.15 * twilightIntensity);
+      float twilightElev = exp(-pow(h * 32.0, 1.25));
+      vec3 twilightWarmth = vec3(0.240, 0.140, 0.120);
+      skyColor += twilightWarmth * (twilightElev * (0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
 
       // 3. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
       if (elevation > 0.005) {
@@ -196,9 +195,10 @@ export const SkyShader = {
         skyColor = mix(skyColor, cloudColor, cloudAlpha * 0.60);
       }
 
-      // 5. Below Horizon atmospheric haze
+      // 5. Below Horizon atmospheric haze: seamlessly continues into oceanic distance haze
       if (elevation < 0.0) {
-        skyColor = mix(cHorizonBase, vec3(0.015, 0.02, 0.04), clamp(-elevation * 3.5, 0.0, 1.0));
+        vec3 cOceanHaze = vec3(0.080, 0.075, 0.125);
+        skyColor = mix(skyColor, cOceanHaze, smoothstep(0.0, -0.35, elevation));
       }
 
       gl_FragColor = vec4(skyColor, 1.0);
