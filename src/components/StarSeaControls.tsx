@@ -68,13 +68,13 @@ export default function StarSeaControls({
               type="button"
               onClick={() => setShowCloudPopover((prev) => !prev)}
               title="调整天幕云雾薄厚与位置"
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
                 showCloudPopover
-                  ? "border-purple-400 bg-purple-500/30 text-purple-200 shadow-lg shadow-purple-900/40"
-                  : "border-purple-400/30 bg-purple-500/10 text-purple-200 hover:border-purple-400/60 hover:bg-purple-500/20"
+                  ? "border-cyan bg-black/60 text-white shadow-lg shadow-cyan/20"
+                  : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:text-white"
               }`}
             >
-              <Cloud size={13} aria-hidden="true" />
+              <Cloud size={13} aria-hidden="true" className={showCloudPopover ? "text-cyan" : "text-white/70"} />
               <span>
                 云雾: {cloudSettings.density === 0 ? "晴空无云" : `${Math.round(cloudSettings.density * 50)}%`}
               </span>
@@ -85,7 +85,7 @@ export default function StarSeaControls({
               <div className="absolute bottom-full left-1/2 z-30 mb-2.5 w-72 -translate-x-1/2 rounded-2xl border border-white/20 bg-slate-950/95 p-3.5 text-xs shadow-2xl backdrop-blur-xl sm:left-0 sm:translate-x-0">
                 <div className="mb-2.5 flex items-center justify-between border-b border-white/10 pb-2 font-medium text-white/80">
                   <span className="flex items-center gap-1.5">
-                    <Cloud size={14} className="text-purple-400" />
+                    <Cloud size={14} className="text-cyan" />
                     <span>天穹夜雾与星云调节</span>
                   </span>
                   <button
@@ -101,7 +101,7 @@ export default function StarSeaControls({
                 <div className="mb-2.5">
                   <div className="mb-1 flex justify-between text-[11px] text-white/70">
                     <span>云雾薄厚 / 密度</span>
-                    <span className="font-mono text-purple-300">
+                    <span className="font-mono text-cyan">
                       {cloudSettings.density === 0 ? "晴空无云" : `${Math.round(cloudSettings.density * 50)}%`}
                     </span>
                   </div>
@@ -117,7 +117,7 @@ export default function StarSeaControls({
                         density: parseFloat(e.target.value),
                       })
                     }
-                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-purple-400"
+                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-cyan"
                   />
                 </div>
 
@@ -125,7 +125,7 @@ export default function StarSeaControls({
                 <div className="mb-2.5">
                   <div className="mb-1 flex justify-between text-[11px] text-white/70">
                     <span>仰角高度 / 位置</span>
-                    <span className="font-mono text-purple-300">
+                    <span className="font-mono text-cyan">
                       {cloudSettings.elevation < 0.2
                         ? "近海平线"
                         : cloudSettings.elevation < 0.45
@@ -145,7 +145,7 @@ export default function StarSeaControls({
                         elevation: parseFloat(e.target.value),
                       })
                     }
-                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-purple-400"
+                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-cyan"
                   />
                 </div>
 
@@ -153,7 +153,7 @@ export default function StarSeaControls({
                 <div className="mb-3">
                   <div className="mb-1 flex justify-between text-[11px] text-white/70">
                     <span>覆盖范围</span>
-                    <span className="font-mono text-purple-300">
+                    <span className="font-mono text-cyan">
                       {Math.round(cloudSettings.coverage * 100)}%
                     </span>
                   </div>
@@ -169,7 +169,7 @@ export default function StarSeaControls({
                         coverage: parseFloat(e.target.value),
                       })
                     }
-                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-purple-400"
+                    className="h-1.5 w-full cursor-pointer rounded-lg bg-white/15 accent-cyan"
                   />
                 </div>
 
@@ -212,16 +212,16 @@ export default function StarSeaControls({
             type="button"
             onClick={onToggleWaveMode}
             title="切换海面状态：镜面平静或微波起伏"
-            className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-medium text-cyan transition-all hover:border-cyan/60 hover:bg-cyan/20"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white/90 transition-all hover:border-cyan hover:text-white cursor-pointer"
           >
             {waveMode === "calm" ? (
               <>
-                <Sparkles size={13} aria-hidden="true" className="animate-pulse" />
+                <Sparkles size={13} aria-hidden="true" className="text-white/70 animate-pulse" />
                 <span>海面：平静倒影 (水天一色)</span>
               </>
             ) : (
               <>
-                <Waves size={13} aria-hidden="true" />
+                <Waves size={13} aria-hidden="true" className="text-white/70" />
                 <span>海面：微波起伏 (柔波轻抚)</span>
               </>
             )}
