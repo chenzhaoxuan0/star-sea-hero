@@ -10,7 +10,6 @@ import {
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
 import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
 import { CONSTELLATIONS } from "@/data/constellations";
-import { CONSTELLATION_OPTIMAL_MAP } from "@/lib/astronomy/constellationFocus";
 import type { CloudSettings, Observer } from "@/types/astronomy";
 import type { SceneHandle } from "@/lib/rendering/scene";
 
@@ -98,41 +97,36 @@ export default function StarSeaCanvas({
     let targetPitch = 0.28;
 
     if (selectedId) {
-      const optimal = CONSTELLATION_OPTIMAL_MAP[selectedId];
-      if (optimal) {
-        const horiz = starToHorizon(
-          { raHours: optimal.raHours, decDegrees: optimal.decDegrees },
-          observerRef.current,
-        );
-        targetYaw = (horiz.azimuth * Math.PI) / 180;
-        targetPitch = Math.max(0.18, Math.min(1.40, (horiz.altitude * Math.PI) / 180));
-      } else {
-        const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
-        if (constellation) {
-          const starIds = new Set<string>();
-          constellation.segments.forEach(([a, b]) => {
-            starIds.add(a);
-            starIds.add(b);
-          });
-          let sumRa = 0;
-          let sumDec = 0;
-          let count = 0;
-          starIds.forEach((id) => {
-            const s = BRIGHT_STARS.find((star) => star.id === id);
-            if (s) {
-              sumRa += s.raHours;
-              sumDec += s.decDegrees;
-              count++;
-            }
-          });
-          if (count > 0) {
-            const horiz = starToHorizon(
-              { raHours: sumRa / count, decDegrees: sumDec / count },
-              observerRef.current,
-            );
-            targetYaw = (horiz.azimuth * Math.PI) / 180;
-            targetPitch = Math.max(0.18, Math.min(1.40, (horiz.altitude * Math.PI) / 180));
+      const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
+      if (constellation) {
+        const starIds = new Set<string>();
+        constellation.segments.forEach(([a, b]) => {
+          starIds.add(a);
+          starIds.add(b);
+        });
+        let cx = 0;
+        let cy = 0;
+        let cz = 0;
+        let count = 0;
+        starIds.forEach((id) => {
+          const s = BRIGHT_STARS.find((star) => star.id === id);
+          if (s) {
+            const h = starToHorizon(s, observerRef.current);
+            cx += h.vector.x;
+            cy += h.vector.y;
+            cz += h.vector.z;
+            count++;
           }
+        });
+        if (count > 0) {
+          const len = Math.hypot(cx, cy, cz) || 1;
+          const nx = cx / len;
+          const ny = cy / len;
+          const nz = cz / len;
+          targetYaw = Math.atan2(nx, -nz);
+          const rawPitch = Math.asin(Math.max(-1, Math.min(1, ny)));
+          // Limit pitch between 0.22 (~13°) and 1.15 (~66°) to center constellation in sky and avoid zenith gimbal singularity
+          targetPitch = Math.max(0.22, Math.min(1.15, rawPitch));
         }
       }
     }
@@ -226,6 +220,9 @@ export default function StarSeaCanvas({
           initialMwMat,
         );
         handleRef.current = handle;
+        if (typeof window !== "undefined") {
+          (window as unknown as { __debug: unknown }).__debug = { handle, view };
+        }
 
         if (cloudSettingsRef.current) {
           handle.updateClouds(

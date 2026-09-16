@@ -276,6 +276,7 @@ export const BRIGHT_STARS: StarRecord[] = [
   { id: "hip-4889", name: "69Sig Psc", raHours: 1.04697, decDegrees: 31.8043, magnitude: 5.5, color: "#bbccff", constellation: "pisces" },
   { id: "hip-96406", name: "51    Sgr", raHours: 19.60046, decDegrees: -24.7191, magnitude: 5.64, color: "#f0f4ff", constellation: "sagittarius" },
   { id: "hip-33165", name: "HIP 33165", raHours: 6.90362, decDegrees: -23.9283, magnitude: 6.65, color: "#bbccff", constellation: "canis-major" },
+  { id: "hip-3760", name: "71 Psc", raHours: 0.8064, decDegrees: 8.583, magnitude: 5.2, color: "#fff0dd", constellation: "pisces" },
 ];
 
 export function createFaintStarField(count: number): StarRecord[] {

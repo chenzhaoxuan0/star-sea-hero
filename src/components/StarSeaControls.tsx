@@ -326,10 +326,10 @@ export default function StarSeaControls({
       {selected ? (
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-xs text-white/70">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-medium text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
+            <span className="font-semibold text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
             {optimalInfo && (
-              <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2 py-0.5 text-[10px] text-cyan">
-                已自动匹配{optimalInfo.seasonNameZh}最佳视界
+              <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium text-cyan shadow-sm shadow-cyan/10">
+                已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
               </span>
             )}
             <span className="text-white/60">：{selected.descriptionZh}</span>
@@ -337,7 +337,7 @@ export default function StarSeaControls({
           <button
             type="button"
             onClick={() => onSelect("")}
-            className="shrink-0 text-[11px] text-cyan transition-colors hover:text-cyan/80 hover:underline"
+            className="shrink-0 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-[11px] text-cyan transition-all hover:bg-cyan/20 hover:text-white"
           >
             重置全天视角
           </button>

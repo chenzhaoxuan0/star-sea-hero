@@ -297,9 +297,9 @@ export function createSky(
   const selectedLineGeom = new THREE.BufferGeometry();
   selectedLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(selectedLinesArray, 3));
   const selectedLineMat = new THREE.LineBasicMaterial({
-    color: "#d0f0ff",
+    color: "#38bdf8",
     transparent: true,
-    opacity: 0.88,
+    opacity: 0.95,
     depthWrite: false,
     depthTest: false,
   });
@@ -307,8 +307,53 @@ export function createSky(
 
   const updateConstellations = (selectedId: string) => {
     buildLinePositions(selectedId);
-    defaultLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(defaultLines, 3));
-    selectedLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(selectedLinesArray, 3));
+
+    const oldDefault = constellationLines.geometry;
+    const newDefault = new THREE.BufferGeometry();
+    newDefault.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(defaultLines, 3),
+    );
+    constellationLines.geometry = newDefault;
+    oldDefault.dispose();
+
+    const oldSelected = selectedLines.geometry;
+    const newSelected = new THREE.BufferGeometry();
+    newSelected.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(selectedLinesArray, 3),
+    );
+    selectedLines.geometry = newSelected;
+    oldSelected.dispose();
+
+    // Highlight selected constellation stars
+    const sizeAttr = starGeometry.getAttribute("size") as THREE.BufferAttribute | undefined;
+    const isBrightAttr = starGeometry.getAttribute("isBright") as THREE.BufferAttribute | undefined;
+    if (sizeAttr && isBrightAttr) {
+      const sizeArr = sizeAttr.array as Float32Array;
+      const brightArr = isBrightAttr.array as Float32Array;
+      const selStars = new Set<string>();
+      if (selectedId) {
+        const con = constellations.find((c) => c.id === selectedId);
+        con?.segments.forEach(([a, b]) => {
+          selStars.add(a);
+          selStars.add(b);
+        });
+      }
+      stars.forEach((star, idx) => {
+        if (idx >= sizeArr.length) return;
+        const baseSize = Math.max(2.2, 5.2 - star.magnitude * 0.6);
+        if (selStars.has(star.id)) {
+          sizeArr[idx] = Math.max(baseSize * 1.5, 6.0);
+          brightArr[idx] = 1.0;
+        } else {
+          sizeArr[idx] = baseSize;
+          brightArr[idx] = star.magnitude < 2.2 ? 1.0 : 0.0;
+        }
+      });
+      sizeAttr.needsUpdate = true;
+      isBrightAttr.needsUpdate = true;
+    }
   };
 
   const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
@@ -318,6 +363,19 @@ export function createSky(
 
     const posAttr = starGeometry.getAttribute("position") as THREE.BufferAttribute;
     const posArray = posAttr.array as Float32Array;
+    const sizeAttr = starGeometry.getAttribute("size") as THREE.BufferAttribute;
+    const sizeArray = sizeAttr.array as Float32Array;
+    const isBrightAttr = starGeometry.getAttribute("isBright") as THREE.BufferAttribute;
+    const isBrightArray = isBrightAttr.array as Float32Array;
+
+    const selectedStarIds = new Set<string>();
+    if (selectedId) {
+      const selectedCon = constellations.find((c) => c.id === selectedId);
+      selectedCon?.segments.forEach(([a, b]) => {
+        selectedStarIds.add(a);
+        selectedStarIds.add(b);
+      });
+    }
 
     newStars.forEach((star, idx) => {
       if (idx * 3 + 2 >= posArray.length) return;
@@ -331,9 +389,20 @@ export function createSky(
       posArray[idx * 3] = vec.x;
       posArray[idx * 3 + 1] = vec.y;
       posArray[idx * 3 + 2] = vec.z;
+
+      const baseSize = Math.max(2.2, 5.2 - star.magnitude * 0.6);
+      if (selectedStarIds.has(star.id)) {
+        sizeArray[idx] = Math.max(baseSize * 1.5, 6.0);
+        isBrightArray[idx] = 1.0;
+      } else {
+        sizeArray[idx] = baseSize;
+        isBrightArray[idx] = star.magnitude < 2.2 ? 1.0 : 0.0;
+      }
     });
 
     posAttr.needsUpdate = true;
+    sizeAttr.needsUpdate = true;
+    isBrightAttr.needsUpdate = true;
     updateConstellations(selectedId);
   };
 
