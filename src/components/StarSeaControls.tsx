@@ -20,6 +20,8 @@ export default function StarSeaControls({
   onToggleWaveMode,
   isPlaying,
   onTogglePlay,
+  playSpeed = 1,
+  onPlaySpeedChange,
   selectedTimezone,
   onTimezoneChange,
   selectedLatitude,
@@ -36,6 +38,8 @@ export default function StarSeaControls({
   onToggleWaveMode: () => void;
   isPlaying: boolean;
   onTogglePlay: () => void;
+  playSpeed?: number;
+  onPlaySpeedChange?: (speed: number) => void;
   selectedTimezone: string;
   onTimezoneChange: (tzId: string) => void;
   selectedLatitude: string;
@@ -231,7 +235,7 @@ export default function StarSeaControls({
       </div>
 
       {/* Main Interaction Controls Grid */}
-      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.4fr_1fr_1fr_1.5fr] sm:items-end">
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.25fr_0.9fr_0.9fr_1.95fr] sm:items-end">
         {/* Constellation Selector */}
         <label className="grid gap-1 text-xs text-white/70">
           <span className="flex items-center gap-1">
@@ -294,7 +298,7 @@ export default function StarSeaControls({
             {isPlaying && (
               <span className="flex items-center gap-1 text-[10px] text-cyan animate-pulse">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan"></span>
-                恒星日流转中
+                恒星日流转 ({playSpeed}x · 每秒{playSpeed}分)
               </span>
             )}
           </div>
@@ -304,12 +308,27 @@ export default function StarSeaControls({
               type="datetime-local"
               value={observerDateValue(observer)}
               onChange={(event) => onDateChange(event.target.value)}
-              className="min-h-10 flex-1 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors focus:border-cyan"
+              className="min-h-10 flex-1 min-w-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors focus:border-cyan"
             />
+            {/* Speed Multiplier Dropdown */}
+            <select
+              aria-label="选择播放倍速"
+              value={playSpeed}
+              onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
+              title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
+              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer"
+            >
+              <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
+              <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>
+              <option value={5} className="bg-[#0b1324] text-white">5x (5分/秒)</option>
+              <option value={10} className="bg-[#0b1324] text-white">10x (10分/秒)</option>
+              <option value={30} className="bg-[#0b1324] text-white">30x (30分/秒)</option>
+              <option value={60} className="bg-[#0b1324] text-white">60x (1小时/秒)</option>
+            </select>
             <button
               type="button"
               onClick={onTogglePlay}
-              title={isPlaying ? "暂停流转" : "开启时间流转"}
+              title={isPlaying ? "暂停流转" : `开启时间流转 (${playSpeed}x，每秒流转 ${playSpeed} 分钟)`}
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
                 isPlaying
                   ? "border-cyan bg-cyan/20 text-cyan shadow-lg shadow-cyan/20"

@@ -30,8 +30,9 @@ export default function StarSeaHero() {
   const [selectedTimezone, setSelectedTimezone] = useState("UTC+8");
   const [selectedLatitude, setSelectedLatitude] = useState("35N");
 
-  // Auto-lapse playback state
+  // Auto-lapse playback state & speed (1x = 1 min/sec, 2x = 2 min/sec, etc.)
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playSpeed, setPlaySpeed] = useState(1);
 
   // Nocturnal clouds & mist settings (default to 0.0 clear sky so Milky Way is completely unobstructed)
   const [cloudSettings, setCloudSettings] = useState<CloudSettings>({
@@ -99,15 +100,15 @@ export default function StarSeaHero() {
     }));
   };
 
-  // Real-time sidereal time advance during Play
+  // Real-time sidereal time advance during Play (1x = 1 min/s, 2x = 2 min/s, etc.)
   useEffect(() => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => {
       setObserver((current) => {
         const d = new Date(current.date);
-        // Advance 30 minutes every second (fast-forward diurnal sky motion)
-        d.setMinutes(d.getMinutes() + 30);
+        // Advance playSpeed minutes every second
+        d.setMinutes(d.getMinutes() + playSpeed);
         return {
           ...current,
           date: d.toISOString(),
@@ -116,7 +117,7 @@ export default function StarSeaHero() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, playSpeed]);
 
   return (
     <section
@@ -148,6 +149,8 @@ export default function StarSeaHero() {
         onToggleWaveMode={handleToggleWaveMode}
         isPlaying={isPlaying}
         onTogglePlay={handleTogglePlay}
+        playSpeed={playSpeed}
+        onPlaySpeedChange={setPlaySpeed}
         selectedTimezone={selectedTimezone}
         onTimezoneChange={handleTimezoneChange}
         selectedLatitude={selectedLatitude}
