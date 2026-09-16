@@ -9,6 +9,7 @@ import {
 } from "@/lib/rendering/quality";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
 import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
+import { getOptimalObserverForConstellation } from "@/lib/astronomy/constellationFocus";
 import { CONSTELLATIONS } from "@/data/constellations";
 import type { CloudSettings, Observer } from "@/types/astronomy";
 import type { SceneHandle } from "@/lib/rendering/scene";
@@ -18,6 +19,7 @@ export default function StarSeaCanvas({
   onError,
   observer,
   selectedId,
+  selectedTimezone = "UTC+8",
   waveMode = "rippled",
   cloudSettings,
   isPlaying = false,
@@ -28,6 +30,7 @@ export default function StarSeaCanvas({
   onError: (error: unknown) => void;
   observer: Observer;
   selectedId: string;
+  selectedTimezone?: string;
   waveMode?: "calm" | "rippled";
   cloudSettings?: CloudSettings;
   isPlaying?: boolean;
@@ -54,21 +57,19 @@ export default function StarSeaCanvas({
   playSpeedRef.current = playSpeed;
   const onObserverDateUpdateRef = useRef(onObserverDateUpdate);
   onObserverDateUpdateRef.current = onObserverDateUpdate;
+  const selectedTimezoneRef = useRef(selectedTimezone);
+  selectedTimezoneRef.current = selectedTimezone;
   const simDateMs = useRef(new Date(observer.date).getTime());
   const lastUiSyncTime = useRef(0);
+  const lastSyncedLat = useRef(observer.latitude);
+  const lastSyncedLon = useRef(observer.longitude);
 
-  // Sync simulation timestamp when pausing or selecting a new constellation
+  // Sync simulation timestamp when pausing
   useEffect(() => {
     if (!isPlaying) {
       onObserverDateUpdateRef.current?.(new Date(simDateMs.current).toISOString());
     }
   }, [isPlaying]);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      simDateMs.current = new Date(observer.date).getTime();
-    }
-  }, [selectedId, observer.date, isPlaying]);
 
   // Update wave mode uniform dynamically
   useEffect(() => {
@@ -88,12 +89,26 @@ export default function StarSeaCanvas({
     }
   }, [cloudSettings]);
 
-  // Update stars & Milky Way matrix smoothly when observer time/location changes (e.g. from user controls)
+  // Update stars & Milky Way matrix smoothly when observer time/location changes (e.g. from user controls, date picker, or selection)
   useEffect(() => {
     if (!handleRef.current) return;
-    if (isPlayingRef.current) return; // Handled continuously at 60 FPS in render()
 
-    simDateMs.current = new Date(observer.date).getTime();
+    const incomingMs = new Date(observer.date).getTime();
+    const isExternalDateJump = Math.abs(incomingMs - simDateMs.current) > 2000;
+    const isLocationChange =
+      observer.latitude !== lastSyncedLat.current ||
+      observer.longitude !== lastSyncedLon.current;
+
+    // During playback, skip if this is merely our own 400ms periodic UI date sync from the render loop
+    if (isPlayingRef.current && !isExternalDateJump && !isLocationChange) {
+      return;
+    }
+
+    lastSyncedLat.current = observer.latitude;
+    lastSyncedLon.current = observer.longitude;
+    simDateMs.current = incomingMs;
+    observerRef.current = observer;
+
     if (catalogRef.current.length > 0) {
       const visibleStars = starsToHorizon(catalogRef.current, observer);
       handleRef.current.updateStars(visibleStars, selectedIdRef.current);
@@ -129,6 +144,20 @@ export default function StarSeaCanvas({
     if (selectedId) {
       const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
       if (constellation) {
+        // Resolve optimal observer for this constellation to guarantee it is visible high in the sky
+        const optimal = getOptimalObserverForConstellation(
+          selectedId,
+          observerRef.current,
+          selectedTimezoneRef.current,
+        );
+        const targetObs = optimal ? optimal.observer : observerRef.current;
+
+        // Synchronize simulation timeline and canvas state immediately with this constellation
+        simDateMs.current = new Date(targetObs.date).getTime();
+        lastSyncedLat.current = targetObs.latitude;
+        lastSyncedLon.current = targetObs.longitude;
+        observerRef.current = targetObs;
+
         const starIds = new Set<string>();
         constellation.segments.forEach(([a, b]) => {
           starIds.add(a);
@@ -141,7 +170,7 @@ export default function StarSeaCanvas({
         starIds.forEach((id) => {
           const s = BRIGHT_STARS.find((star) => star.id === id);
           if (s) {
-            const h = starToHorizon(s, observerRef.current);
+            const h = starToHorizon(s, targetObs);
             cx += h.vector.x;
             cy += h.vector.y;
             cz += h.vector.z;
@@ -155,8 +184,20 @@ export default function StarSeaCanvas({
           const nz = cz / len;
           targetYaw = Math.atan2(nx, -nz);
           const rawPitch = Math.asin(Math.max(-1, Math.min(1, ny)));
-          // Limit pitch between 0.22 (~13°) and 1.15 (~66°) to center constellation in sky and avoid zenith gimbal singularity
-          targetPitch = Math.max(0.22, Math.min(1.15, rawPitch));
+          // Limit pitch between 0.22 (~13°) and 1.25 (~72°) to center constellation in sky and avoid zenith gimbal singularity
+          targetPitch = Math.max(0.22, Math.min(1.25, rawPitch));
+        }
+
+        // Immediately update WebGL stars and Milky Way so the constellation is visible right away
+        if (handleRef.current && catalogRef.current.length > 0) {
+          const visibleStars = starsToHorizon(catalogRef.current, targetObs);
+          handleRef.current.updateStars(visibleStars, selectedId);
+          const basis = calculateMilkyWayBasis(targetObs);
+          const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+          const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+          const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+          const mwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
+          handleRef.current.updateMilkyWay(mwMat);
         }
       }
     }

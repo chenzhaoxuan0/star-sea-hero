@@ -135,6 +135,7 @@ export default function StarSeaHero() {
         <StarSeaCanvas
           observer={observer}
           selectedId={selectedId}
+          selectedTimezone={selectedTimezone}
           waveMode={waveMode}
           cloudSettings={cloudSettings}
           isPlaying={isPlaying}
