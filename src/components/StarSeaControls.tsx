@@ -52,7 +52,7 @@ export default function StarSeaControls({
   const optimalInfo = selectedId ? CONSTELLATION_OPTIMAL_MAP[selectedId] : null;
 
   return (
-    <div className="star-sea-panel pointer-events-auto absolute bottom-12 left-1/2 z-20 w-[min(94vw,840px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 sm:bottom-10 sm:p-4 backdrop-blur-md">
+    <div className="star-sea-panel pointer-events-auto absolute bottom-12 left-1/2 z-20 w-[min(95vw,1040px)] -translate-x-1/2 rounded-2xl border border-white/15 bg-slate-950/80 p-3 text-left text-white/85 shadow-2xl shadow-black/50 sm:bottom-10 sm:p-4 backdrop-blur-xl">
       {/* Top Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/55">
@@ -235,18 +235,18 @@ export default function StarSeaControls({
       </div>
 
       {/* Main Interaction Controls Grid */}
-      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.25fr_0.9fr_0.9fr_1.95fr] sm:items-end">
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.1fr_0.85fr_0.85fr_1.85fr] sm:items-end">
         {/* Constellation Selector */}
-        <label className="grid gap-1 text-xs text-white/70">
+        <label className="grid gap-1 text-xs text-white/70 min-w-0">
           <span className="flex items-center gap-1">
-            <Star size={12} className="text-cyan" />
-            <span>星宿天区 (选择跳转)</span>
+            <Star size={12} className="text-cyan shrink-0" />
+            <span className="truncate">星宿天区 (选择跳转)</span>
           </span>
           <select
             aria-label="选择星宿天区"
             value={selectedId}
             onChange={(event) => onSelect(event.target.value)}
-            className="min-h-10 rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
           >
             <option value="">探索全天星图 (未指定)</option>
             {constellations.map((constellation) => (
@@ -258,13 +258,13 @@ export default function StarSeaControls({
         </label>
 
         {/* Observation Timezone */}
-        <label className="grid gap-1 text-xs text-white/70">
-          <span>观测经度 / 时区</span>
+        <label className="grid gap-1 text-xs text-white/70 min-w-0">
+          <span className="truncate">观测经度 / 时区</span>
           <select
             aria-label="选择观测时区"
             value={selectedTimezone}
             onChange={(event) => onTimezoneChange(event.target.value)}
-            className="min-h-10 rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
           >
             {TIMEZONE_PRESETS.map((tz) => (
               <option key={tz.id} value={tz.id}>
@@ -275,13 +275,13 @@ export default function StarSeaControls({
         </label>
 
         {/* Observation Latitude */}
-        <label className="grid gap-1 text-xs text-white/70">
-          <span>观测纬度带</span>
+        <label className="grid gap-1 text-xs text-white/70 min-w-0">
+          <span className="truncate">观测纬度带</span>
           <select
             aria-label="选择观测纬度"
             value={selectedLatitude}
             onChange={(event) => onLatitudeChange(event.target.value)}
-            className="min-h-10 rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
+            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors focus:border-cyan"
           >
             {LATITUDE_PRESETS.map((lat) => (
               <option key={lat.id} value={lat.id}>
@@ -292,23 +292,23 @@ export default function StarSeaControls({
         </label>
 
         {/* Date & Time with Playback Streamer */}
-        <div className="grid gap-1 text-xs text-white/70">
+        <div className="grid gap-1 text-xs text-white/70 min-w-0">
           <div className="flex items-center justify-between">
-            <span>观测时间 & 流转</span>
+            <span className="truncate">观测时间 & 流转</span>
             {isPlaying && (
-              <span className="flex items-center gap-1 text-[10px] text-cyan animate-pulse">
+              <span className="flex items-center gap-1 text-[10px] text-cyan animate-pulse shrink-0">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan"></span>
-                恒星日流转 ({playSpeed}x · 每秒{playSpeed}分)
+                恒星日流转 ({playSpeed}x)
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <input
               aria-label="调整观测时间"
               type="datetime-local"
               value={observerDateValue(observer)}
               onChange={(event) => onDateChange(event.target.value)}
-              className="min-h-10 flex-1 min-w-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors focus:border-cyan"
+              className="min-h-10 min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors focus:border-cyan"
             />
             {/* Speed Multiplier Dropdown */}
             <select
@@ -316,14 +316,14 @@ export default function StarSeaControls({
               value={playSpeed}
               onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
               title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
-              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer"
+              className="min-h-10 w-[62px] shrink-0 rounded-xl border border-white/15 bg-black/40 px-1 text-center text-xs font-mono font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer"
             >
-              <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
-              <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>
-              <option value={5} className="bg-[#0b1324] text-white">5x (5分/秒)</option>
-              <option value={10} className="bg-[#0b1324] text-white">10x (10分/秒)</option>
-              <option value={30} className="bg-[#0b1324] text-white">30x (30分/秒)</option>
-              <option value={60} className="bg-[#0b1324] text-white">60x (1小时/秒)</option>
+              <option value={1} className="bg-[#0b1324] text-white">1x</option>
+              <option value={2} className="bg-[#0b1324] text-white">2x</option>
+              <option value={5} className="bg-[#0b1324] text-white">5x</option>
+              <option value={10} className="bg-[#0b1324] text-white">10x</option>
+              <option value={30} className="bg-[#0b1324] text-white">30x</option>
+              <option value={60} className="bg-[#0b1324] text-white">60x</option>
             </select>
             <button
               type="button"
