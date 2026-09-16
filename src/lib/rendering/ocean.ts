@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Reflector } from "three/examples/jsm/objects/Reflector.js";
 import { OceanShader } from "./shaders/oceanShader";
 import type { QualitySettings } from "./quality";
 
@@ -6,75 +7,60 @@ export type OceanHandle = {
   mesh: THREE.Mesh;
   material: THREE.ShaderMaterial;
   setWaveMode: (mode: number) => void;
-  updateStarReflections: (stars: Array<{ horizon: { vector: { x: number; y: number; z: number } }; color: string; magnitude: number }>) => void;
+  updateStarReflections?: (stars: Array<{ horizon?: { vector?: { x: number; y: number; z: number } }; color?: string; magnitude?: number }>) => void;
   update: (elapsed: number, camera: THREE.Camera) => void;
   dispose: () => void;
 };
 
 export function createOcean(quality: QualitySettings): OceanHandle {
-  const segments = Math.max(96, quality.oceanSegments);
-  const size = 600;
+  const size = 6000;
+  const geometry = new THREE.PlaneGeometry(size, size);
 
-  const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+  const textureResolution = quality.reflectionScale >= 0.7 ? 1024 : 512;
 
-  const material = new THREE.ShaderMaterial({
-    vertexShader: OceanShader.vertexShader,
-    fragmentShader: OceanShader.fragmentShader,
-    uniforms: THREE.UniformsUtils.clone(OceanShader.uniforms),
-    side: THREE.DoubleSide,
-    transparent: false,
-    depthWrite: true,
-    depthTest: true,
+  const reflector = new Reflector(geometry, {
+    clipBias: 0.003,
+    textureWidth: textureResolution,
+    textureHeight: textureResolution,
+    color: 0xffffff,
+    shader: OceanShader,
+    multisample: quality.reflectionScale >= 0.7 ? 2 : 0,
   });
 
-  const mesh = new THREE.Mesh(geometry, material);
-  // Lower ocean slightly for expansive celestial dome view
-  mesh.position.set(0, -0.85, 0);
+  // Rotate horizontal and place at sea level
+  reflector.rotation.x = -Math.PI / 2;
+  reflector.position.set(0, -0.85, 0);
+
+  const material = reflector.material as THREE.ShaderMaterial;
 
   const setWaveMode = (mode: number) => {
-    material.uniforms.waveMode.value = mode;
-  };
-
-  const tempCol = new THREE.Color();
-  const updateStarReflections = (stars: Array<{ horizon?: { vector?: { x: number; y: number; z: number } }; color?: string; magnitude?: number }>) => {
-    if (!stars || !Array.isArray(stars)) return;
-    const visibleBright = stars
-      .filter((s) => s?.horizon?.vector && typeof s.horizon.vector.y === "number" && s.horizon.vector.y > 0.04)
-      .sort((a, b) => (a.magnitude ?? 5) - (b.magnitude ?? 5))
-      .slice(0, 24);
-
-    const dirArray = material.uniforms.uStarDirs.value as THREE.Vector3[];
-    const colArray = material.uniforms.uStarCols.value as THREE.Vector3[];
-
-    visibleBright.forEach((star, idx) => {
-      if (!star?.horizon?.vector) return;
-      dirArray[idx].set(star.horizon.vector.x, star.horizon.vector.y, star.horizon.vector.z).normalize();
-      try {
-        tempCol.set(star.color || "#ffffff");
-      } catch {
-        tempCol.set(0xffffff);
-      }
-      colArray[idx].set(tempCol.r, tempCol.g, tempCol.b);
-    });
-
-    material.uniforms.uStarCount.value = visibleBright.length;
+    if (material.uniforms.waveMode) {
+      material.uniforms.waveMode.value = mode;
+    }
   };
 
   const update = (elapsed: number, camera: THREE.Camera) => {
-    material.uniforms.time.value = elapsed;
-    material.uniforms.cameraPos.value.copy(camera.position);
+    if (material.uniforms.time) {
+      material.uniforms.time.value = elapsed;
+    }
+    if (material.uniforms.cameraPos) {
+      material.uniforms.cameraPos.value.copy(camera.position);
+    }
   };
 
   const dispose = () => {
     geometry.dispose();
-    material.dispose();
+    if (typeof (reflector as unknown as { dispose: () => void }).dispose === "function") {
+      (reflector as unknown as { dispose: () => void }).dispose();
+    } else {
+      material.dispose();
+    }
   };
 
   return {
-    mesh,
+    mesh: reflector as unknown as THREE.Mesh,
     material,
     setWaveMode,
-    updateStarReflections,
     update,
     dispose,
   };

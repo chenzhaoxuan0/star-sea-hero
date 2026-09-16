@@ -11,6 +11,8 @@ export type SceneHandle = {
   starPositions: Map<string, THREE.Vector3>;
   updateConstellation: (id: string) => void;
   updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
+  updateMilkyWay: (matrix: THREE.Matrix4) => void;
+  updateClouds: (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => void;
   setWaveMode: (mode: number) => void;
   render: (elapsed: number) => void;
   dispose: () => void;
@@ -23,6 +25,7 @@ export function createScene(
   constellations: ConstellationDefinition[] = [],
   selectedConstellationId = "",
   initialWaveMode = 0.0,
+  initialMilkyWayMatrix?: THREE.Matrix4,
 ): SceneHandle {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -59,22 +62,24 @@ export function createScene(
 
   // Perspective camera matching astrophotography composition (~62 deg FOV)
   const aspect = (canvas.clientWidth || window.innerWidth) / Math.max(canvas.clientHeight || window.innerHeight, 1);
-  const camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 1200);
+  const camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 5000);
   camera.position.set(0, 0, 0);
   // Default look direction: camera tilted up towards the starry sky (sky takes ~75-80% of screen)
   camera.lookAt(0, 0.28, -1);
 
   // 1. Sky & Celestial Layer
   const sky: SkyHandle = createSky(quality, stars, constellations, selectedConstellationId);
+  if (initialMilkyWayMatrix) {
+    sky.updateMilkyWay(initialMilkyWayMatrix);
+  }
   scene.add(sky.skyDome);
   scene.add(sky.starPoints);
   scene.add(sky.constellationLines);
   scene.add(sky.selectedLines);
 
-  // 2. Physical Ocean Surface
+  // 2. Physical Ocean Surface (Planar Reflector)
   const ocean: OceanHandle = createOcean(quality);
   ocean.setWaveMode(initialWaveMode);
-  ocean.updateStarReflections(stars);
   scene.add(ocean.mesh);
 
   const updateConstellation = (id: string) => {
@@ -83,7 +88,14 @@ export function createScene(
 
   const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
     sky.updateStars(newStars, selectedId);
-    ocean.updateStarReflections(newStars);
+  };
+
+  const updateMilkyWay = (matrix: THREE.Matrix4) => {
+    sky.updateMilkyWay(matrix);
+  };
+
+  const updateClouds = (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => {
+    sky.updateClouds(density, elevation, coverage, offset);
   };
 
   const setWaveMode = (mode: number) => {
@@ -109,6 +121,8 @@ export function createScene(
     starPositions: sky.starPositions,
     updateConstellation,
     updateStars,
+    updateMilkyWay,
+    updateClouds,
     setWaveMode,
     render,
     dispose,

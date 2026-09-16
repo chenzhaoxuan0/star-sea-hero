@@ -12,6 +12,8 @@ export type SkyHandle = {
   update: (elapsed: number) => void;
   updateConstellations: (selectedId: string) => void;
   updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
+  updateMilkyWay: (matrix: THREE.Matrix4) => void;
+  updateClouds: (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => void;
   dispose: () => void;
 };
 
@@ -319,6 +321,24 @@ export function createSky(
     updateConstellations(selectedId);
   };
 
+  const updateMilkyWay = (matrix: THREE.Matrix4) => {
+    skyMaterial.uniforms.milkyWayMatrix.value.copy(matrix);
+  };
+
+  const updateClouds = (
+    density: number,
+    elevation: number,
+    coverage: number,
+    offset?: { x: number; y: number },
+  ) => {
+    skyMaterial.uniforms.uCloudDensity.value = density;
+    skyMaterial.uniforms.uCloudElevation.value = elevation;
+    skyMaterial.uniforms.uCloudCoverage.value = coverage;
+    if (offset) {
+      skyMaterial.uniforms.uCloudOffset.value.set(offset.x, offset.y);
+    }
+  };
+
   const update = (elapsed: number) => {
     skyMaterial.uniforms.time.value = elapsed;
     starMaterial.uniforms.time.value = elapsed;
@@ -344,6 +364,8 @@ export function createSky(
     update,
     updateConstellations,
     updateStars,
+    updateMilkyWay,
+    updateClouds,
     dispose,
   };
 }

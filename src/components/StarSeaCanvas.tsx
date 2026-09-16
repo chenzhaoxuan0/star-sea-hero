@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
 import {
   chooseInitialQuality,
   getQualitySettings,
   type QualityLevel,
 } from "@/lib/rendering/quality";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
-import { starsToHorizon } from "@/lib/astronomy/coordinates";
+import { calculateMilkyWayBasis, starsToHorizon } from "@/lib/astronomy/coordinates";
 import { CONSTELLATIONS } from "@/data/constellations";
-import type { Observer } from "@/types/astronomy";
+import type { CloudSettings, Observer } from "@/types/astronomy";
 import type { SceneHandle } from "@/lib/rendering/scene";
 
 export default function StarSeaCanvas({
@@ -18,12 +19,14 @@ export default function StarSeaCanvas({
   observer,
   selectedId,
   waveMode = "calm",
+  cloudSettings,
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
   observer: Observer;
   selectedId: string;
   waveMode?: "calm" | "rippled";
+  cloudSettings?: CloudSettings;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -37,6 +40,8 @@ export default function StarSeaCanvas({
   const catalogRef = useRef<ReturnType<typeof createFaintStarField>>([]);
   const observerRef = useRef(observer);
   observerRef.current = observer;
+  const cloudSettingsRef = useRef(cloudSettings);
+  cloudSettingsRef.current = cloudSettings;
 
   // Update wave mode uniform dynamically
   useEffect(() => {
@@ -45,11 +50,30 @@ export default function StarSeaCanvas({
     }
   }, [waveMode]);
 
-  // Update stars smoothly on existing GPU buffers when observer time/location changes
+  // Update clouds dynamically
   useEffect(() => {
-    if (!handleRef.current || catalogRef.current.length === 0) return;
-    const visibleStars = starsToHorizon(catalogRef.current, observer);
-    handleRef.current.updateStars(visibleStars, selectedIdRef.current);
+    if (handleRef.current && cloudSettings) {
+      handleRef.current.updateClouds(
+        cloudSettings.density,
+        cloudSettings.elevation,
+        cloudSettings.coverage,
+      );
+    }
+  }, [cloudSettings]);
+
+  // Update stars & Milky Way matrix smoothly when observer time/location changes
+  useEffect(() => {
+    if (!handleRef.current) return;
+    if (catalogRef.current.length > 0) {
+      const visibleStars = starsToHorizon(catalogRef.current, observer);
+      handleRef.current.updateStars(visibleStars, selectedIdRef.current);
+    }
+    const basis = calculateMilkyWayBasis(observer);
+    const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+    const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+    const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+    const mwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
+    handleRef.current.updateMilkyWay(mwMat);
   }, [observer]);
 
   // Update constellation lines dynamically without tearing down the WebGL scene
@@ -94,8 +118,8 @@ export default function StarSeaCanvas({
 
     const radius = Math.hypot(cx, cy, cz) || 1;
     const rawPitch = Math.asin(Math.max(-1, Math.min(1, cy / radius)));
-    // If the constellation is below the horizon, point towards its azimuth at an elegant observing altitude
-    const targetPitch = rawPitch < 0.22 ? 0.32 : Math.min(1.20, rawPitch);
+    // Point towards constellation azimuth at an elegant observing altitude
+    const targetPitch = rawPitch < 0.22 ? 0.32 : Math.min(1.2, rawPitch);
     const targetYaw = Math.atan2(cx, -cz);
 
     const startYaw = view.current.yaw;
@@ -143,8 +167,8 @@ export default function StarSeaCanvas({
 
     const timeout = window.setTimeout(() => {
       timedOut = true;
-      if (!disposed) fail(new Error("Star Sea initialization timed out."));
-    }, 15_000);
+      fail(new Error("Star Sea WebGL initialization timed out."));
+    }, 7000);
 
     const start = async () => {
       try {
@@ -169,6 +193,13 @@ export default function StarSeaCanvas({
         ];
         catalogRef.current = catalog;
         const visibleStars = starsToHorizon(catalog, observerRef.current);
+
+        const basis = calculateMilkyWayBasis(observerRef.current);
+        const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+        const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+        const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+        const initialMwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
+
         const handle = createScene(
           canvas,
           getQualitySettings(level),
@@ -176,8 +207,17 @@ export default function StarSeaCanvas({
           CONSTELLATIONS,
           selectedIdRef.current,
           waveModeRef.current === "rippled" ? 1.0 : 0.0,
+          initialMwMat,
         );
         handleRef.current = handle;
+
+        if (cloudSettingsRef.current) {
+          handle.updateClouds(
+            cloudSettingsRef.current.density,
+            cloudSettingsRef.current.elevation,
+            cloudSettingsRef.current.coverage,
+          );
+        }
 
         let dragging = false;
         let lastX = 0;

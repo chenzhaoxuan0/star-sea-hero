@@ -9,7 +9,7 @@ import {
   formatCoordinatesLabel,
   observerFromDateInput,
 } from "@/data/defaultObserver";
-import type { Observer } from "@/types/astronomy";
+import type { CloudSettings, Observer } from "@/types/astronomy";
 import StarSeaCanvas from "./StarSeaCanvas";
 import StarSeaControls from "./StarSeaControls";
 import StarSeaFallback from "./StarSeaFallback";
@@ -31,6 +31,13 @@ export default function StarSeaHero() {
 
   // Auto-lapse playback state
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Nocturnal clouds & mist settings
+  const [cloudSettings, setCloudSettings] = useState<CloudSettings>({
+    density: 1.0,
+    elevation: 0.32,
+    coverage: 0.55,
+  });
 
   const handleReady = useCallback(() => {
     setLoadingState("interactive");
@@ -79,54 +86,36 @@ export default function StarSeaHero() {
     }));
   };
 
-  // Continuous diurnal rotation when time-lapse is playing
+  // Real-time sidereal time advance during Play
   useEffect(() => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => {
       setObserver((current) => {
-        // Advance sidereal observation time by 3 minutes every 300ms
-        const nextTime = new Date(current.date).getTime() + 180_000;
+        const d = new Date(current.date);
+        // Advance 30 minutes every second (fast-forward diurnal sky motion)
+        d.setMinutes(d.getMinutes() + 30);
         return {
           ...current,
-          date: new Date(nextTime).toISOString(),
+          date: d.toISOString(),
         };
       });
-    }, 300);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduceMotion.matches) {
-      setFallback(true);
-      setLoadingState("interactive");
-    } else {
-      setLoadingState("initializing");
-    }
-  }, []);
-
   return (
     <section
-      id="explore"
-      aria-labelledby="star-sea-title"
-      className="star-sea-shell min-h-[100svh]"
+      aria-label="星辰大海交互三维星空"
+      className="star-sea-hero relative h-screen w-full overflow-hidden bg-space text-white"
     >
-      {/* First-frame poster fallback */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/star-sea-poster.webp"
-        alt=""
-        className={`star-sea-poster ${loadingState === "interactive" && !fallback ? "is-hidden" : ""}`}
-        fetchPriority="high"
-        decoding="async"
-      />
       {!fallback && (
         <StarSeaCanvas
           observer={observer}
           selectedId={selectedId}
           waveMode={waveMode}
+          cloudSettings={cloudSettings}
           onReady={handleReady}
           onError={handleError}
         />
@@ -150,6 +139,8 @@ export default function StarSeaHero() {
         onTimezoneChange={handleTimezoneChange}
         selectedLatitude={selectedLatitude}
         onLatitudeChange={handleLatitudeChange}
+        cloudSettings={cloudSettings}
+        onCloudSettingsChange={setCloudSettings}
       />
 
       {!fallback && (
