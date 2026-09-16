@@ -123,8 +123,8 @@ export const SkyShader = {
       vec3 cIndigoPurple = vec3(0.205, 0.155, 0.385); // Royal purple
       vec3 cLavender     = vec3(0.340, 0.225, 0.475); // Twilight lavender
       vec3 cDuskRose     = vec3(0.550, 0.275, 0.405); // Warm rose-pink
-      vec3 cHorizonAmber = vec3(0.890, 0.450, 0.235); // Sunset amber
-      vec3 cHorizonGold  = vec3(0.960, 0.650, 0.350); // Soft gold
+      vec3 cHorizonAmber = vec3(0.680, 0.350, 0.200); // Muted twilight amber
+      vec3 cHorizonGold  = vec3(0.780, 0.480, 0.260); // Soft dusk gold
 
       // Elevation height ramp
       float h = max(0.0, elevation);
@@ -135,15 +135,15 @@ export const SkyShader = {
       skyColor = mix(skyColor, cLavender,     1.0 - smoothstep(0.05, 0.22, h));
       skyColor = mix(skyColor, cDuskRose,     1.0 - smoothstep(0.02, 0.11, h));
 
-      // 2. Horizon Twilight Glow (centered toward sunDirection)
+      // 2. Horizon Twilight Glow (centered toward sunDirection) - Soft, muted twilight sliver
       float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.5);
 
-      // Smooth, non-blown-out golden-amber glow along the horizon
-      float horizonBand = exp(-pow(h * 36.0, 1.45));
-      float horizonCore = exp(-pow(h * 72.0, 1.75));
-      vec3 glowColor = mix(cHorizonAmber, cHorizonGold, horizonCore * 0.7);
-      skyColor += glowColor * (horizonBand * (0.60 + 0.40 * azimuthFactor) * 1.15 * twilightIntensity);
+      // Subtle, muted glow hugging the horizon line without glare
+      float horizonBand = exp(-pow(h * 48.0, 1.60));
+      float horizonCore = exp(-pow(h * 96.0, 1.85));
+      vec3 glowColor = mix(cHorizonAmber, cHorizonGold, horizonCore * 0.6);
+      skyColor += glowColor * (horizonBand * (0.50 + 0.50 * azimuthFactor) * 0.45 * twilightIntensity);
 
       // 3. Arching Milky Way Galaxy & Nebula
       vec3 galRay = (milkyWayMatrix * vec4(ray, 0.0)).xyz;

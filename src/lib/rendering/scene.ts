@@ -10,6 +10,8 @@ export type SceneHandle = {
   renderer: THREE.WebGLRenderer;
   starPositions: Map<string, THREE.Vector3>;
   updateConstellation: (id: string) => void;
+  updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
+  setWaveMode: (mode: number) => void;
   render: (elapsed: number) => void;
   dispose: () => void;
 };
@@ -20,6 +22,7 @@ export function createScene(
   stars: Array<StarRecord & { horizon: HorizonPosition }> = [],
   constellations: ConstellationDefinition[] = [],
   selectedConstellationId = "",
+  initialWaveMode = 0.0,
 ): SceneHandle {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -58,8 +61,8 @@ export function createScene(
   const aspect = (canvas.clientWidth || window.innerWidth) / Math.max(canvas.clientHeight || window.innerHeight, 1);
   const camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 1200);
   camera.position.set(0, 0, 0);
-  // Default look direction: forward towards horizon with subtle upward tilt (sky takes ~65% of screen)
-  camera.lookAt(0, 0.12, -1);
+  // Default look direction: camera tilted up towards the starry sky (sky takes ~75-80% of screen)
+  camera.lookAt(0, 0.28, -1);
 
   // 1. Sky & Celestial Layer
   const sky: SkyHandle = createSky(quality, stars, constellations, selectedConstellationId);
@@ -70,10 +73,21 @@ export function createScene(
 
   // 2. Physical Ocean Surface
   const ocean: OceanHandle = createOcean(quality);
+  ocean.setWaveMode(initialWaveMode);
+  ocean.updateStarReflections(stars);
   scene.add(ocean.mesh);
 
   const updateConstellation = (id: string) => {
     sky.updateConstellations(id);
+  };
+
+  const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
+    sky.updateStars(newStars, selectedId);
+    ocean.updateStarReflections(newStars);
+  };
+
+  const setWaveMode = (mode: number) => {
+    ocean.setWaveMode(mode);
   };
 
   const render = (elapsed: number) => {
@@ -94,6 +108,8 @@ export function createScene(
     renderer,
     starPositions: sky.starPositions,
     updateConstellation,
+    updateStars,
+    setWaveMode,
     render,
     dispose,
   };

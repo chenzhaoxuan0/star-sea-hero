@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CONSTELLATIONS } from "@/data/constellations";
-import { DEFAULT_OBSERVER, observerFromDateInput } from "@/data/defaultObserver";
+import {
+  DEFAULT_OBSERVER,
+  LATITUDE_PRESETS,
+  TIMEZONE_PRESETS,
+  formatCoordinatesLabel,
+  observerFromDateInput,
+} from "@/data/defaultObserver";
 import type { Observer } from "@/types/astronomy";
 import StarSeaCanvas from "./StarSeaCanvas";
 import StarSeaControls from "./StarSeaControls";
@@ -15,6 +21,16 @@ export default function StarSeaHero() {
   const [fallback, setFallback] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [observer, setObserver] = useState<Observer>(DEFAULT_OBSERVER);
+
+  // Sea State: "calm" (mirror-like with star reflection) vs "rippled" (silky harmonics)
+  const [waveMode, setWaveMode] = useState<"calm" | "rippled">("calm");
+
+  // Timezone & Latitude preset selection
+  const [selectedTimezone, setSelectedTimezone] = useState("UTC+8");
+  const [selectedLatitude, setSelectedLatitude] = useState("35N");
+
+  // Auto-lapse playback state
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleReady = useCallback(() => {
     setLoadingState("interactive");
@@ -31,21 +47,55 @@ export default function StarSeaHero() {
     setObserver((current) => observerFromDateInput(current, value));
   };
 
-  const handleLocate = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setObserver((current) => ({
-          ...current,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          label: "Current location",
-        }));
-      },
-      () => undefined,
-      { timeout: 3500, maximumAge: 300000 },
-    );
+  const handleToggleWaveMode = () => {
+    setWaveMode((prev) => (prev === "calm" ? "rippled" : "calm"));
   };
+
+  const handleTogglePlay = () => {
+    setIsPlaying((prev) => !prev);
+  };
+
+  const handleTimezoneChange = (tzId: string) => {
+    setSelectedTimezone(tzId);
+    const tz = TIMEZONE_PRESETS.find((t) => t.id === tzId);
+    if (!tz) return;
+
+    setObserver((current) => ({
+      ...current,
+      longitude: tz.longitude,
+      label: formatCoordinatesLabel(current.latitude, tz.longitude, tz.id),
+    }));
+  };
+
+  const handleLatitudeChange = (latId: string) => {
+    setSelectedLatitude(latId);
+    const lat = LATITUDE_PRESETS.find((l) => l.id === latId);
+    if (!lat) return;
+
+    setObserver((current) => ({
+      ...current,
+      latitude: lat.latitude,
+      label: formatCoordinatesLabel(lat.latitude, current.longitude, selectedTimezone),
+    }));
+  };
+
+  // Continuous diurnal rotation when time-lapse is playing
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const interval = setInterval(() => {
+      setObserver((current) => {
+        // Advance sidereal observation time by 3 minutes every 300ms
+        const nextTime = new Date(current.date).getTime() + 180_000;
+        return {
+          ...current,
+          date: new Date(nextTime).toISOString(),
+        };
+      });
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [isPlaying]);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -63,7 +113,7 @@ export default function StarSeaHero() {
       aria-labelledby="star-sea-title"
       className="star-sea-shell min-h-[100svh]"
     >
-      {/* Native img keeps the first-frame poster independent from Next image runtime. */}
+      {/* First-frame poster fallback */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/star-sea-poster.webp"
@@ -76,6 +126,7 @@ export default function StarSeaHero() {
         <StarSeaCanvas
           observer={observer}
           selectedId={selectedId}
+          waveMode={waveMode}
           onReady={handleReady}
           onError={handleError}
         />
@@ -84,24 +135,32 @@ export default function StarSeaHero() {
       <div className="star-sea-grain" />
       {fallback && <StarSeaFallback />}
       <StarSeaLoading state={loadingState} />
+
       <StarSeaControls
         observer={observer}
         constellations={CONSTELLATIONS}
         selectedId={selectedId}
         onSelect={setSelectedId}
         onDateChange={handleDateChange}
-        onLocate={handleLocate}
+        waveMode={waveMode}
+        onToggleWaveMode={handleToggleWaveMode}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
+        selectedTimezone={selectedTimezone}
+        onTimezoneChange={handleTimezoneChange}
+        selectedLatitude={selectedLatitude}
+        onLatitudeChange={handleLatitudeChange}
       />
 
       {!fallback && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between px-6 py-8 sm:px-10 sm:py-10">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/60">
-            <span>Star Sea / Preview</span>
-            <span>Interactive sky</span>
+            <span>Star Sea / WebGL 3D</span>
+            <span>Celestial Horizon</span>
           </div>
           <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-            <p className="mb-5 text-[10px] uppercase tracking-[0.34em] text-white/65">
-              Celestial atlas
+            <p className="mb-4 text-[10px] uppercase tracking-[0.34em] text-white/65">
+              Celestial Atlas & Ocean Mirror
             </p>
             <h1
               id="star-sea-title"
@@ -109,13 +168,13 @@ export default function StarSeaHero() {
             >
               星辰大海
             </h1>
-            <p className="mt-5 max-w-xl text-sm leading-7 text-white/70 sm:text-base">
-              Explore the sky above a breathing ocean.
+            <p className="mt-4 max-w-xl text-xs sm:text-sm leading-6 text-white/70">
+              仰望浩瀚星穹，俯瞰平静如镜的海面倒影。
             </p>
           </div>
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.24em] text-white/55">
-            <span>Drag to explore</span>
-            <span>Sky above / Ocean below</span>
+            <span>Drag sky to explore</span>
+            <span>Water & Sky in Harmony</span>
           </div>
         </div>
       )}

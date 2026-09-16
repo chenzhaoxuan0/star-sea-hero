@@ -11,6 +11,7 @@ export type SkyHandle = {
   starPositions: Map<string, THREE.Vector3>;
   update: (elapsed: number) => void;
   updateConstellations: (selectedId: string) => void;
+  updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
   dispose: () => void;
 };
 
@@ -292,6 +293,32 @@ export function createSky(
     selectedLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(selectedLinesArray, 3));
   };
 
+  const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
+    positionMap.clear();
+    starById.clear();
+    newStars.forEach((star) => starById.set(star.id, star));
+
+    const posAttr = starGeometry.getAttribute("position") as THREE.BufferAttribute;
+    const posArray = posAttr.array as Float32Array;
+
+    newStars.forEach((star, idx) => {
+      if (idx * 3 + 2 >= posArray.length) return;
+      const vec = new THREE.Vector3(
+        star.horizon.vector.x,
+        star.horizon.vector.y,
+        star.horizon.vector.z,
+      ).normalize().multiplyScalar(420);
+      positionMap.set(star.id, vec);
+
+      posArray[idx * 3] = vec.x;
+      posArray[idx * 3 + 1] = vec.y;
+      posArray[idx * 3 + 2] = vec.z;
+    });
+
+    posAttr.needsUpdate = true;
+    updateConstellations(selectedId);
+  };
+
   const update = (elapsed: number) => {
     skyMaterial.uniforms.time.value = elapsed;
     starMaterial.uniforms.time.value = elapsed;
@@ -316,6 +343,7 @@ export function createSky(
     starPositions: positionMap,
     update,
     updateConstellations,
+    updateStars,
     dispose,
   };
 }

@@ -15,12 +15,21 @@ export const OceanShader = {
     sunDirection: { value: new THREE.Vector3(0, -0.02, -1).normalize() },
     cameraPos: { value: new THREE.Vector3(0, 0, 0) },
     twilightIntensity: { value: 1.0 },
+    waveMode: { value: 0.0 }, // 0.0 = calm mirror (水天一色), 1.0 = gentle ripples (微波起伏)
     milkyWayMatrix: { value: new THREE.Matrix4() },
+    uStarDirs: {
+      value: Array.from({ length: 24 }, () => new THREE.Vector3(0, 1, 0)),
+    },
+    uStarCols: {
+      value: Array.from({ length: 24 }, () => new THREE.Vector3(1, 1, 1)),
+    },
+    uStarCount: { value: 0 },
   },
 
   vertexShader: `
     uniform float time;
     uniform vec3 cameraPos;
+    uniform float waveMode;
 
     varying vec3 vWorldPosition;
     varying vec3 vViewDir;
@@ -29,11 +38,11 @@ export const OceanShader = {
     void main() {
       vOceanUv = uv;
 
-      // Gentle broad oceanic swell in vertex shader
+      // Smooth oceanic swell modulated by waveMode (0 in calm mode)
       vec2 pos = position.xy;
-      float w1 = sin(pos.y * 0.035 + time * 0.45) * 0.06;
-      float w2 = cos(pos.x * 0.025 + pos.y * 0.02 + time * 0.35) * 0.04;
-      float swellY = w1 + w2;
+      float w1 = sin(pos.y * 0.035 + time * 0.45) * 0.055;
+      float w2 = cos(pos.x * 0.025 + pos.y * 0.02 + time * 0.35) * 0.035;
+      float swellY = (w1 + w2) * waveMode;
 
       vec4 localPos = vec4(pos.x, swellY, pos.y, 1.0);
       vec4 worldPos = modelMatrix * localPos;
@@ -49,6 +58,11 @@ export const OceanShader = {
     uniform vec3 sunDirection;
     uniform vec3 cameraPos;
     uniform float twilightIntensity;
+    uniform float waveMode;
+
+    uniform vec3 uStarDirs[24];
+    uniform vec3 uStarCols[24];
+    uniform int uStarCount;
 
     varying vec3 vWorldPosition;
     varying vec3 vViewDir;
@@ -59,7 +73,7 @@ export const OceanShader = {
       float dx = 0.0;
       float dz = 0.0;
 
-      // Harmonic 1: Long horizontal swell (matching poster's calm sea)
+      // Harmonic 1: Long gentle swell
       float k1 = 0.065;
       float w1 = t * 0.55;
       float phase1 = p.y * k1 + p.x * 0.012 + w1;
@@ -94,18 +108,16 @@ export const OceanShader = {
       return normalize(vec3(-dx * 1.8, 1.0, -dz * 1.8));
     }
 
-    // Sky color function matching skyShader for accurate reflection
-    vec3 sampleSky(vec3 ray) {
+    // Sky color function for sea reflection - pure celestial palette without sunset glare
+    vec3 sampleSkyForOcean(vec3 ray) {
       float elevation = max(0.0, ray.y);
 
       vec3 cZenith       = vec3(0.015, 0.020, 0.048);
-      vec3 cHighSky      = vec3(0.042, 0.058, 0.155);
-      vec3 cMidSky       = vec3(0.105, 0.105, 0.275);
-      vec3 cIndigoPurple = vec3(0.205, 0.155, 0.385);
-      vec3 cLavender     = vec3(0.340, 0.225, 0.475);
-      vec3 cDuskRose     = vec3(0.550, 0.275, 0.405);
-      vec3 cHorizonAmber = vec3(0.890, 0.450, 0.235);
-      vec3 cHorizonGold  = vec3(0.960, 0.650, 0.350);
+      vec3 cHighSky      = vec3(0.038, 0.052, 0.140);
+      vec3 cMidSky       = vec3(0.085, 0.090, 0.220);
+      vec3 cIndigoPurple = vec3(0.145, 0.120, 0.280);
+      vec3 cLavender     = vec3(0.240, 0.165, 0.340);
+      vec3 cDuskRose     = vec3(0.350, 0.190, 0.280);
 
       float h = elevation;
       vec3 col = cZenith;
@@ -113,15 +125,11 @@ export const OceanShader = {
       col = mix(col, cMidSky,       1.0 - smoothstep(0.26, 0.58, h));
       col = mix(col, cIndigoPurple, 1.0 - smoothstep(0.14, 0.35, h));
       col = mix(col, cLavender,     1.0 - smoothstep(0.05, 0.22, h));
-      col = mix(col, cDuskRose,     1.0 - smoothstep(0.02, 0.11, h));
+      col = mix(col, cDuskRose,     1.0 - smoothstep(0.01, 0.10, h));
 
-      // Golden horizon glow
-      float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
-      float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.5);
-      float horizonBand = exp(-pow(h * 36.0, 1.45));
-      float horizonCore = exp(-pow(h * 72.0, 1.75));
-      vec3 glowColor = mix(cHorizonAmber, cHorizonGold, horizonCore * 0.7);
-      col += glowColor * (horizonBand * (0.60 + 0.40 * azimuthFactor) * 1.15 * twilightIntensity);
+      // Gentle, subtle horizon rim only (no glaring golden wash)
+      float horizonRim = exp(-pow(h * 64.0, 1.6));
+      col += vec3(0.38, 0.22, 0.16) * (horizonRim * 0.25 * twilightIntensity);
 
       return col;
     }
@@ -129,48 +137,61 @@ export const OceanShader = {
     void main() {
       vec3 viewDir = normalize(vViewDir);
 
-      // Analytical per-pixel normal
-      vec3 N = calculateWaveNormal(vWorldPosition.xz, time);
+      // Surface normal: flat (0, 1, 0) for calm mirror mode, wave normal for rippled mode
+      vec3 waveN = calculateWaveNormal(vWorldPosition.xz, time);
+      vec3 N = normalize(mix(vec3(0.0, 1.0, 0.0), waveN, waveMode));
 
       // Reflected ray
       vec3 R = reflect(-viewDir, N);
-      R.y = max(0.003, R.y);
+      R.y = max(0.002, R.y);
       R = normalize(R);
 
       // Sample reflected sky color along ray R
-      vec3 reflectedSky = sampleSky(R);
+      vec3 reflectedSky = sampleSkyForOcean(R);
 
-      // Diffused golden specular corridor down the center of the water
-      vec3 halfVec = normalize(viewDir - sunDirection);
-      float specBroad = pow(max(0.0, dot(N, halfVec)), 14.0);
-      float specCore  = pow(max(0.0, dot(N, halfVec)), 48.0);
-      vec3 specularGlow = vec3(0.92, 0.52, 0.28) * (specCore * 0.45 + specBroad * 0.22) * twilightIntensity;
+      // Mirror state: authentic 3D Gaussian pinprick reflections of the stars above the water
+      if (waveMode < 0.7) {
+        vec3 starReflectSum = vec3(0.0);
+        for (int i = 0; i < 24; i++) {
+          if (i >= uStarCount) break;
+          float alignment = dot(R, uStarDirs[i]);
+          if (alignment > 0.9982) {
+            // Isotropic 3D cone - forms crisp, round, glowing star reflections with zero stretching
+            float dist = (1.0 - alignment) * 4000.0;
+            float starPoint = exp(-dist * dist);
+            float twinkle = sin(time * 3.4 + float(i) * 2.1) * 0.25 + 0.75;
+            starReflectSum += uStarCols[i] * (starPoint * twinkle * 3.5);
+          }
+        }
+        reflectedSky += starReflectSum * (1.0 - waveMode);
+      }
 
-      // Physically-based Schlick Fresnel with richer ambient sky reflection
+      // Fresnel reflection factor: higher base reflection for mirror mode (0.35) for "sky-sea unity"
       float cosTheta = clamp(dot(viewDir, N), 0.0, 1.0);
-      float F0 = 0.12;
-      float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 3.2);
+      float F0 = mix(0.35, 0.08, waveMode);
+      float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, mix(2.2, 3.8, waveMode));
 
-      // Deep twilight water body matching the poster's rich, tranquil indigo ocean
-      vec3 deepWater = vec3(0.075, 0.095, 0.175);
-      vec3 shallowWater = vec3(0.115, 0.145, 0.245);
+      // Pure midnight indigo oceanic water body (matching reference image)
+      vec3 deepWater = vec3(0.015, 0.024, 0.052);
+      vec3 shallowWater = vec3(0.028, 0.045, 0.088);
       vec3 waterBody = mix(deepWater, shallowWater, clamp(vWorldPosition.y * 4.0 + 0.5, 0.0, 1.0));
 
-      // Subtle ambient wave sheen reflecting sky tones across foreground swells
-      float waveSheen = pow(clamp(dot(N, vec3(0.0, 0.85, -0.52)), 0.0, 1.0), 9.0) * 0.18;
-      waterBody += vec3(0.14, 0.16, 0.28) * waveSheen;
+      // Subtle cool ambient sheen on ripples
+      if (waveMode > 0.1) {
+        float waveSheen = pow(clamp(dot(N, vec3(0.0, 0.92, -0.38)), 0.0, 1.0), 8.0) * 0.10 * waveMode;
+        waterBody += vec3(0.08, 0.11, 0.18) * waveSheen;
+      }
 
       // Composite reflection + body
       vec3 finalColor = mix(waterBody, reflectedSky, fresnel);
-      finalColor += specularGlow;
 
       // Atmospheric distance fog smoothly merging ocean with horizon twilight
       float dist = length(cameraPos - vWorldPosition);
-      float fogFactor = clamp((dist - 40.0) / 260.0, 0.0, 1.0);
-      fogFactor = pow(fogFactor, 1.6);
+      float fogFactor = clamp((dist - 35.0) / 280.0, 0.0, 1.0);
+      fogFactor = pow(fogFactor, 1.7);
 
-      vec3 horizonFogColor = sampleSky(vec3(sunDirection.x * 0.35, 0.005, sunDirection.z * 0.35));
-      finalColor = mix(finalColor, horizonFogColor, fogFactor * 0.90);
+      vec3 horizonFogColor = sampleSkyForOcean(vec3(0.0, 0.005, -1.0));
+      finalColor = mix(finalColor, horizonFogColor, fogFactor * 0.92);
 
       gl_FragColor = vec4(finalColor, 1.0);
     }

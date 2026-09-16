@@ -17,24 +17,116 @@ export default function StarSeaCanvas({
   onError,
   observer,
   selectedId,
+  waveMode = "calm",
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
   observer: Observer;
   selectedId: string;
+  waveMode?: "calm" | "rippled";
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const handleRef = useRef<SceneHandle | null>(null);
-  const view = useRef({ yaw: 0, pitch: 0.12 });
+  // Default camera pitch: 0.28 rad (~16 deg up) so sea sits low and celestial dome fills screen
+  const view = useRef({ yaw: 0, pitch: 0.28 });
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
+  const waveModeRef = useRef(waveMode);
+  waveModeRef.current = waveMode;
+  const catalogRef = useRef<ReturnType<typeof createFaintStarField>>([]);
+  const observerRef = useRef(observer);
+  observerRef.current = observer;
+
+  // Update wave mode uniform dynamically
+  useEffect(() => {
+    if (handleRef.current) {
+      handleRef.current.setWaveMode(waveMode === "rippled" ? 1.0 : 0.0);
+    }
+  }, [waveMode]);
+
+  // Update stars smoothly on existing GPU buffers when observer time/location changes
+  useEffect(() => {
+    if (!handleRef.current || catalogRef.current.length === 0) return;
+    const visibleStars = starsToHorizon(catalogRef.current, observer);
+    handleRef.current.updateStars(visibleStars, selectedIdRef.current);
+  }, [observer]);
 
   // Update constellation lines dynamically without tearing down the WebGL scene
   useEffect(() => {
     if (handleRef.current) {
       handleRef.current.updateConstellation(selectedId);
     }
+  }, [selectedId]);
+
+  // Smooth camera fly-to when a constellation is chosen
+  useEffect(() => {
+    if (!handleRef.current || !selectedId) return;
+    const constellation = CONSTELLATIONS.find((item) => item.id === selectedId);
+    if (!constellation) return;
+
+    const starIds = new Set<string>();
+    constellation.segments.forEach(([a, b]) => {
+      starIds.add(a);
+      starIds.add(b);
+    });
+
+    const vectors: { x: number; y: number; z: number }[] = [];
+    starIds.forEach((id) => {
+      const v = handleRef.current?.starPositions.get(id);
+      if (v) vectors.push(v);
+    });
+
+    if (vectors.length === 0) return;
+
+    // Centroid of the constellation stars
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    vectors.forEach((v) => {
+      cx += v.x;
+      cy += v.y;
+      cz += v.z;
+    });
+    cx /= vectors.length;
+    cy /= vectors.length;
+    cz /= vectors.length;
+
+    const radius = Math.hypot(cx, cy, cz) || 1;
+    const rawPitch = Math.asin(Math.max(-1, Math.min(1, cy / radius)));
+    // If the constellation is below the horizon, point towards its azimuth at an elegant observing altitude
+    const targetPitch = rawPitch < 0.22 ? 0.32 : Math.min(1.20, rawPitch);
+    const targetYaw = Math.atan2(cx, -cz);
+
+    const startYaw = view.current.yaw;
+    const startPitch = view.current.pitch;
+
+    // Shortest angular route
+    let deltaYaw = (targetYaw - startYaw) % (Math.PI * 2);
+    if (deltaYaw > Math.PI) deltaYaw -= Math.PI * 2;
+    if (deltaYaw < -Math.PI) deltaYaw += Math.PI * 2;
+
+    const deltaPitch = targetPitch - startPitch;
+    const duration = 1200; // ms
+    const startTime = performance.now();
+    let animId = 0;
+
+    const animateFlyTo = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Cubic ease-out
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      view.current.yaw = startYaw + deltaYaw * ease;
+      view.current.pitch = startPitch + deltaPitch * ease;
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(animateFlyTo);
+      }
+    };
+
+    animId = requestAnimationFrame(animateFlyTo);
+    return () => cancelAnimationFrame(animId);
   }, [selectedId]);
 
   useEffect(() => {
@@ -75,13 +167,15 @@ export default function StarSeaCanvas({
             ),
           ),
         ];
-        const visibleStars = starsToHorizon(catalog, observer);
+        catalogRef.current = catalog;
+        const visibleStars = starsToHorizon(catalog, observerRef.current);
         const handle = createScene(
           canvas,
           getQualitySettings(level),
           visibleStars,
           CONSTELLATIONS,
           selectedIdRef.current,
+          waveModeRef.current === "rippled" ? 1.0 : 0.0,
         );
         handleRef.current = handle;
 
@@ -205,7 +299,7 @@ export default function StarSeaCanvas({
       window.clearTimeout(scheduled);
       cleanup?.();
     };
-  }, [observer, onError, onReady]);
+  }, [onError, onReady]);
 
   return (
     <canvas
