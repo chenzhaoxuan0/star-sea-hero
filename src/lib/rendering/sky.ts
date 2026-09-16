@@ -26,6 +26,7 @@ export function createSky(
   stars: Array<StarRecord & { horizon: HorizonPosition }> = [],
   constellations: ConstellationDefinition[] = [],
   initialSelectedId = "",
+  initialMilkyWayMatrix?: THREE.Matrix4,
 ): SkyHandle {
   // 1. Sky Dome Mesh
   const skyGeometry = new THREE.SphereGeometry(500, 48, 32);
@@ -39,15 +40,20 @@ export function createSky(
     depthTest: false,
   });
 
-  // Align Milky Way orientation: arching across the sky with core on the right
-  const p1 = new THREE.Vector3(-0.85, 0.22, -0.47).normalize();
-  const p2 = new THREE.Vector3(0.0, 0.72, -0.69).normalize();
-  const p3 = new THREE.Vector3(0.85, 0.32, -0.42).normalize();
-  const norm = new THREE.Vector3().crossVectors(p1, p2).normalize();
-  const zAxis = p3.clone();
-  const xAxis = new THREE.Vector3().crossVectors(norm, zAxis).normalize();
-  const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
-  const milkyWayMatrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis).invert();
+  // Authentic Stellarium All-Sky Milky Way Panorama
+  const textureLoader = new THREE.TextureLoader();
+  const milkyWayTexture = textureLoader.load("/textures/milkyway.png");
+  milkyWayTexture.wrapS = THREE.RepeatWrapping;
+  milkyWayTexture.wrapT = THREE.ClampToEdgeWrapping;
+  milkyWayTexture.colorSpace = THREE.SRGBColorSpace;
+  milkyWayTexture.generateMipmaps = true;
+  milkyWayTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  milkyWayTexture.magFilter = THREE.LinearFilter;
+  skyMaterial.uniforms.uMilkyWayMap.value = milkyWayTexture;
+
+  const milkyWayMatrix = initialMilkyWayMatrix
+    ? initialMilkyWayMatrix.clone()
+    : new THREE.Matrix4();
   skyMaterial.uniforms.milkyWayMatrix.value.copy(milkyWayMatrix);
 
   const skyDome = new THREE.Mesh(skyGeometry, skyMaterial);
@@ -108,6 +114,9 @@ export function createSky(
   ];
 
   const invMilkyWay = milkyWayMatrix.clone().invert();
+  const galNGP = new THREE.Vector3(-0.86765, -0.19808, 0.45601).normalize();
+  const galSgr = new THREE.Vector3(-0.0547, -0.8728, -0.4849).normalize();
+  const galCyg = new THREE.Vector3().crossVectors(galNGP, galSgr).normalize();
 
   while (starIdx < targetStarCount) {
     const vec = new THREE.Vector3();
@@ -115,13 +124,15 @@ export function createSky(
     // 45% of stars concentrated along the arching galactic plane
     if (Math.random() < 0.48) {
       const galLong = Math.random() * Math.PI * 2;
-      const galLat = (Math.random() - 0.5) * 0.42; // close to galactic plane
-      const gy = Math.sin(galLat);
-      const gr = Math.cos(galLat);
-      const gx = gr * Math.cos(galLong);
-      const gz = gr * Math.sin(galLong);
+      const galLat = (Math.random() - 0.5) * 0.38; // close to galactic plane
+      const cosB = Math.cos(galLat);
+      const sinB = Math.sin(galLat);
+      const vJ2000 = new THREE.Vector3()
+        .addScaledVector(galSgr, Math.cos(galLong) * cosB)
+        .addScaledVector(galCyg, Math.sin(galLong) * cosB)
+        .addScaledVector(galNGP, sinB);
 
-      vec.set(gx, gy, gz).applyMatrix4(invMilkyWay).normalize();
+      vec.copy(vJ2000).applyMatrix4(invMilkyWay).normalize();
       if (vec.y < 0.02) vec.y = Math.abs(vec.y) + 0.05; // keep in upper sky
       vec.normalize().multiplyScalar(418 + (Math.random() - 0.5) * 12);
     } else {
@@ -345,6 +356,7 @@ export function createSky(
   };
 
   const dispose = () => {
+    milkyWayTexture.dispose();
     skyGeometry.dispose();
     skyMaterial.dispose();
     starGeometry.dispose();

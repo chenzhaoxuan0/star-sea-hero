@@ -8,6 +8,8 @@ export const SkyShader = {
     time: { value: 0 },
     sunDirection: { value: new THREE.Vector3(0, -0.02, -1).normalize() },
     milkyWayMatrix: { value: new THREE.Matrix4() },
+    uMilkyWayMap: { value: null as THREE.Texture | null },
+    uMilkyWayIntensity: { value: 1.35 },
     twilightIntensity: { value: 0.45 },
     uCloudDensity: { value: 1.0 },
     uCloudElevation: { value: 0.32 },
@@ -31,6 +33,8 @@ export const SkyShader = {
     uniform float time;
     uniform vec3 sunDirection;
     uniform mat4 milkyWayMatrix;
+    uniform sampler2D uMilkyWayMap;
+    uniform float uMilkyWayIntensity;
     uniform float twilightIntensity;
 
     uniform float uCloudDensity;
@@ -144,49 +148,30 @@ export const SkyShader = {
       vec3 twilightWarmth = vec3(0.280, 0.150, 0.120);
       skyColor += twilightWarmth * (twilightElev * (0.35 + 0.65 * azimuthFactor) * 0.15 * twilightIntensity);
 
-      // 3. Astrophotography-Grade Milky Way Galaxy (IAU Galactic Coordinates)
-      vec3 galRay = (milkyWayMatrix * vec4(ray, 0.0)).xyz;
-      float galLat = abs(galRay.y); // sin(galactic latitude)
+      // 3. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
+      if (elevation > 0.005) {
+        vec3 vEq = (milkyWayMatrix * vec4(ray, 0.0)).xyz;
+        float mwZenith = acos(clamp(vEq.z, -1.0, 1.0));
+        float v = mwZenith / 3.141592653589793;
+        float lon = atan(vEq.x, vEq.y);
+        float u = fract(lon / (2.0 * 3.141592653589793));
 
-      if (galLat < 0.42 && elevation > 0.01) {
-        // Continuous diffuse galactic band
-        float bandProfile = exp(-pow(galLat / 0.14, 2.0));
+        vec4 mwTex = texture2D(uMilkyWayMap, vec2(u, v));
 
-        // Galactic Center Bulge (Sagittarius l = 0, galRay.z > 0)
-        float coreDist = length(vec2(galRay.y * 2.5, galRay.x * 1.5));
-        float coreBulge = exp(-pow(coreDist / 0.22, 1.8)) * max(0.0, galRay.z + 0.1) * 0.95;
+        // Atmospheric extinction towards horizon: dimmer near horizon, fully visible above elevation 0.08
+        float mwExtinction = smoothstep(0.008, 0.09, elevation);
 
-        // Cygnus Star Cloud (l = 90 deg, galRay.x > 0)
-        float cygnusDist = length(vec2(galLat * 2.0, galRay.x - 0.40));
-        float cygnusCloud = exp(-pow(cygnusDist / 0.30, 1.6)) * 0.55;
+        // Astrophotography color grading:
+        // Enhance core luminosity and faint stardust clouds with subtle dynamic range expansion
+        vec3 mwRgb = mwTex.rgb;
+        float mwLuma = dot(mwRgb, vec3(0.299, 0.587, 0.114));
+        
+        // Gentle gamma correction for rich stellar contrast
+        vec3 mwGraded = pow(mwRgb, vec3(1.15)) * 1.40;
+        // Faint celestial interstellar nebulosity glow
+        mwGraded += vec3(0.02, 0.03, 0.07) * pow(mwLuma, 1.5);
 
-        // Subtle fine-scale stardust micro-granularity
-        float stardust = (fbm(galRay * 14.0) - 0.5) * 0.18 + (fbm(galRay * 28.0) - 0.5) * 0.08;
-
-        // The Great Rift dark absorbing interstellar dust lanes
-        float riftOffset = (fbm(galRay * 8.0 + vec3(1.2, 3.4, 5.6)) - 0.5) * 0.040;
-        float riftDist = abs(galRay.y - riftOffset);
-        float riftLane = exp(-pow(riftDist / 0.026, 1.5));
-        float isCoreRegion = smoothstep(-0.2, 0.7, galRay.z);
-        float dustAbsorption = 1.0 - riftLane * isCoreRegion * 0.70;
-
-        float mwIntensity = (bandProfile * 0.65 + coreBulge + cygnusCloud) * (1.0 + stardust) * dustAbsorption;
-        mwIntensity = clamp(mwIntensity, 0.0, 1.8);
-
-        // Horizon fade to preserve clean atmospheric depth
-        float horizonFade = smoothstep(0.03, 0.18, elevation);
-        mwIntensity *= horizonFade;
-
-        // Authentic astronomical starlight colors:
-        // Silvery stardust, warm golden core, deep interstellar azure
-        vec3 mwCoreWarm  = vec3(0.95, 0.88, 0.76); // warm golden galactic nucleus
-        vec3 mwStarCloud = vec3(0.82, 0.86, 0.96); // luminous silvery stellar light
-        vec3 mwHaloBlue  = vec3(0.24, 0.32, 0.55); // faint interstellar gas haze
-
-        vec3 mwColor = mix(mwHaloBlue, mwStarCloud, smoothstep(0.10, 0.50, mwIntensity));
-        mwColor = mix(mwColor, mwCoreWarm, smoothstep(0.55, 1.20, mwIntensity * max(0.0, galRay.z)));
-
-        skyColor += mwColor * (mwIntensity * 0.48);
+        skyColor += mwGraded * (mwExtinction * uMilkyWayIntensity);
       }
 
       // 4. Natural Nocturnal Atmospheric Clouds / Mist (Adjustable)

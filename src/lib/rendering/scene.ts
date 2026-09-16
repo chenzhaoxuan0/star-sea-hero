@@ -68,7 +68,7 @@ export function createScene(
   camera.lookAt(0, 0.28, -1);
 
   // 1. Sky & Celestial Layer
-  const sky: SkyHandle = createSky(quality, stars, constellations, selectedConstellationId);
+  const sky: SkyHandle = createSky(quality, stars, constellations, selectedConstellationId, initialMilkyWayMatrix);
   if (initialMilkyWayMatrix) {
     sky.updateMilkyWay(initialMilkyWayMatrix);
   }

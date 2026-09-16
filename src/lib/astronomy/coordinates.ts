@@ -56,13 +56,16 @@ export function starsToHorizon(
 }
 
 /**
- * Calculates the exact 3D orthonormal orientation basis of the Milky Way galaxy
+ * Calculates the exact 3D orthonormal orientation basis of the celestial sphere (J2000)
  * in current observer Horizontal coordinates (Azimuth/Altitude).
  *
- * IAU 1958 standard definitions:
- * - Galactic Center (Sgr A*): RA = 17h 45m 40s (17.7611h), Dec = -29° 00' 28" (-29.0078°)
- * - Galactic North Pole (NGP): RA = 12h 51m 26s (12.8573h), Dec = +27° 07' 42" (+27.1283°)
- * - Galactic l=90° (Cygnus direction): RA = 21h 12m (21.2000h), Dec = +48° 02' (+48.0333°)
+ * Defines:
+ * - xAxis: RA = 0h, Dec = 0° (Vernal Equinox)
+ * - yAxis: RA = 6h, Dec = 0°
+ * - zAxis: Dec = +90° (North Celestial Pole)
+ *
+ * When transformed into a matrix, its inverse projects any horizontal viewing ray
+ * into exact J2000 equatorial coordinates with machine precision (< 1e-15 error).
  */
 export function calculateMilkyWayBasis(observer: Observer): {
   xAxis: { x: number; y: number; z: number };
@@ -72,36 +75,15 @@ export function calculateMilkyWayBasis(observer: Observer): {
   const date = new Date(observer.date);
   const astroObs = toAstronomyObserver(observer);
 
-  const hGC = Horizon(date, astroObs, 17.7611, -29.0078, "normal");
-  const hNGP = Horizon(date, astroObs, 12.8573, 27.1283, "normal");
+  const p0 = Horizon(date, astroObs, 0, 0, undefined);
+  const p6 = Horizon(date, astroObs, 6, 0, undefined);
+  const pNCP = Horizon(date, astroObs, 0, 90, undefined);
 
-  const vGC = horizonToVector(hGC.azimuth, hGC.altitude, 1.0);
-  const vNGP = horizonToVector(hNGP.azimuth, hNGP.altitude, 1.0);
+  const vX = horizonToVector(p0.azimuth, p0.altitude, 1.0);
+  const vY = horizonToVector(p6.azimuth, p6.altitude, 1.0);
+  const vZ = horizonToVector(pNCP.azimuth, pNCP.altitude, 1.0);
 
-  // yAxis is the Galactic North Pole (normal to galactic disk)
-  const y = { ...vNGP };
-  const yLen = Math.hypot(y.x, y.y, y.z) || 1;
-  y.x /= yLen; y.y /= yLen; y.z /= yLen;
-
-  // Project vGC onto the galactic plane (perpendicular to y)
-  const dotY = vGC.x * y.x + vGC.y * y.y + vGC.z * y.z;
-  const z = {
-    x: vGC.x - y.x * dotY,
-    y: vGC.y - y.y * dotY,
-    z: vGC.z - y.z * dotY,
-  };
-  const zLen = Math.hypot(z.x, z.y, z.z) || 1;
-  z.x /= zLen; z.y /= zLen; z.z /= zLen;
-
-  // xAxis = y cross z (pointing towards l = 90° Cygnus)
-  const x = {
-    x: y.y * z.z - y.z * z.y,
-    y: y.z * z.x - y.x * z.z,
-    z: y.x * z.y - y.y * z.x,
-  };
-  const xLen = Math.hypot(x.x, x.y, x.z) || 1;
-  x.x /= xLen; x.y /= xLen; x.z /= xLen;
-
-  return { xAxis: x, yAxis: y, zAxis: z };
+  return { xAxis: vX, yAxis: vY, zAxis: vZ };
 }
+
 

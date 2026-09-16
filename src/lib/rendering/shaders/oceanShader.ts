@@ -123,13 +123,15 @@ export const OceanShader = {
       // Exactly matching skyShader's cHorizonBase = vec3(0.165, 0.130, 0.225)
       vec3 cHorizonBase = vec3(0.165, 0.130, 0.225);
       
-      // Angular elevation below horizon: -viewDir.y goes from ~0.15 (near feet) down to 0.000 (horizon)
-      float viewElevation = max(0.0, -viewDir.y);
-      float horizonFactor = 1.0 - smoothstep(0.000, 0.032, viewElevation);
+      // Angular elevation angle towards camera: viewDir.y = +0.85 / dist > 0
+      // Near camera (dist ~5m): viewElevation ~0.17
+      // Far horizon (dist > 400m): viewElevation < 0.002
+      float viewElevation = clamp(viewDir.y, 0.0, 1.0);
+      float horizonFactor = 1.0 - smoothstep(0.0004, 0.0035, viewElevation);
       
       // Also blend by distance for distant haze
       float dist = length(cameraPos - vWorldPosition);
-      float distFog = smoothstep(300.0, 2200.0, dist);
+      float distFog = smoothstep(450.0, 2400.0, dist);
       float totalHorizonBlend = clamp(max(horizonFactor, distFog), 0.0, 1.0);
 
       finalColor = mix(finalColor, cHorizonBase, totalHorizonBlend);

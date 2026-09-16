@@ -1,10 +1,10 @@
-import { chromium } from '@playwright/test';
+import { chromium } from 'playwright';
 import path from 'path';
 
 const ARTIFACT_DIR = 'C:/Users/chenziyu/.gemini/antigravity-ide/brain/6b40b3b9-4b0b-4bac-b750-18ab115729a0';
 
 async function main() {
-  console.log('Launching chromium...');
+  console.log('Launching chromium with WebGL...');
   const browser = await chromium.launch({
     headless: true,
     args: [
@@ -37,76 +37,75 @@ async function main() {
   await page.goto('http://localhost:4010', { waitUntil: 'networkidle' });
 
   // Wait for canvas to have is-ready
-  await page.waitForSelector('canvas.is-ready', { timeout: 15000 });
+  await page.waitForSelector('canvas.is-ready', { timeout: 20000 });
   console.log('Canvas is-ready selector matched!');
 
-  // Wait 2.5 seconds for initial rendering
-  await page.waitForTimeout(2500);
+  // Wait 3 seconds for texture loading and initial rendering
+  await page.waitForTimeout(3000);
 
-  // Take initial calm ocean screenshot
+  // 1. Initial view: calm ocean with starry mirror and Stellarium Milky Way
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_initial_calm_sea.png'),
+    path: path.join(ARTIFACT_DIR, 'v11_initial_calm_sea_reflection.png'),
     fullPage: false
   });
-  console.log('Captured initial calm sea screenshot.');
+  console.log('Captured 1: v11_initial_calm_sea_reflection.png');
 
-  // Check cloud control button
-  const cloudBtn = page.locator('button[title="调整天幕云雾薄厚与位置"]');
-  await cloudBtn.click();
-  await page.waitForTimeout(600);
-
-  // Click dense clouds preset
-  const denseCloudBtn = page.getByRole('button', { name: '浓郁层云' });
-  await denseCloudBtn.click();
-  await page.waitForTimeout(1000);
+  // 2. Drag to look up into the deep celestial sphere (Milky Way view)
+  const canvas = page.locator('canvas.star-sea-canvas');
+  const box = await canvas.boundingBox();
+  if (box) {
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+    // Drag down to pitch camera up towards high zenith
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 180, startY + 280, { steps: 25 });
+    await page.mouse.up();
+  }
+  await page.waitForTimeout(1500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_dense_clouds.png'),
+    path: path.join(ARTIFACT_DIR, 'v11_milky_way_sky_dome.png'),
     fullPage: false
   });
-  console.log('Captured dense clouds screenshot.');
+  console.log('Captured 2: v11_milky_way_sky_dome.png');
 
-  // Click clear sky preset
-  const clearSkyBtn = page.getByRole('button', { name: '晴朗明澈' });
-  await clearSkyBtn.click();
-  await page.waitForTimeout(1000);
-  await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_clear_sky.png'),
-    fullPage: false
-  });
-  console.log('Captured clear sky screenshot.');
-
-  // Close cloud popup
-  await cloudBtn.click();
-  await page.waitForTimeout(400);
-
-  // Toggle ocean waves
-  const oceanBtn = page.locator('button[title="切换海面状态：镜面平静或微波起伏"]');
+  // 3. Toggle ocean to wavy mode
+  const oceanBtn = page.getByRole('button', { name: /海面：/ });
   await oceanBtn.click();
   await page.waitForTimeout(1500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_wavy_ocean.png'),
+    path: path.join(ARTIFACT_DIR, 'v11_wavy_ocean_mode.png'),
     fullPage: false
   });
-  console.log('Captured wavy ocean screenshot.');
+  console.log('Captured 3: v11_wavy_ocean_mode.png');
 
-  // Select Cygnus constellation
-  const constellSelect = page.getByLabel('选择星宿天区');
-  await constellSelect.selectOption('cygnus');
-  await page.waitForTimeout(2000);
+  // 4. Select Sagittarius (Teapot at Galactic Core)
+  const constellSelect = page.locator('select[aria-label="选择星宿天区"]');
+  await constellSelect.selectOption('sagittarius');
+  await page.waitForTimeout(2500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_constellation_cygnus.png'),
+    path: path.join(ARTIFACT_DIR, 'v11_constellation_sagittarius_core.png'),
     fullPage: false
   });
-  console.log('Captured Cygnus constellation screenshot.');
+  console.log('Captured 4: v11_constellation_sagittarius_core.png');
 
-  // Select Ursa Major
+  // 5. Select Orion (Hunter)
+  await constellSelect.selectOption('orion');
+  await page.waitForTimeout(2500);
+  await page.screenshot({
+    path: path.join(ARTIFACT_DIR, 'v11_constellation_orion.png'),
+    fullPage: false
+  });
+  console.log('Captured 5: v11_constellation_orion.png');
+
+  // 6. Select Ursa Major (Big Dipper)
   await constellSelect.selectOption('ursa-major');
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2500);
   await page.screenshot({
-    path: path.join(ARTIFACT_DIR, 'playwright_constellation_ursa_major.png'),
+    path: path.join(ARTIFACT_DIR, 'v11_constellation_ursa_major.png'),
     fullPage: false
   });
-  console.log('Captured Ursa Major constellation screenshot.');
+  console.log('Captured 6: v11_constellation_ursa_major.png');
 
   console.log('PAGE CONSOLE LOGS COUNT:', consoleLogs.length);
   console.log('PAGE ERRORS COUNT:', errors.length);
@@ -115,7 +114,7 @@ async function main() {
   }
 
   await browser.close();
-  console.log('Verification finished successfully!');
+  console.log('Playwright verification finished successfully!');
 }
 
 main().catch(err => {
