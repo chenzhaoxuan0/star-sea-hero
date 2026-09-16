@@ -280,8 +280,8 @@ export default function DarkDateTimePicker({
                 {/* Hours list */}
                 <div
                   ref={hourListRef}
-                  className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 rounded scrollbar-thin scrollbar-thumb-white/20"
-                  style={{ maxHeight: "178px" }}
+                  className="flex-1 overflow-y-auto space-y-0.5 rounded no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  style={{ maxHeight: "178px", scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
                   {Array.from({ length: 24 }).map((_, h) => {
                     const isSelected = h === hours;
@@ -306,8 +306,8 @@ export default function DarkDateTimePicker({
                 {/* Minutes list */}
                 <div
                   ref={minuteListRef}
-                  className="flex-1 overflow-y-auto space-y-0.5 pr-0.5 rounded scrollbar-thin scrollbar-thumb-white/20"
-                  style={{ maxHeight: "178px" }}
+                  className="flex-1 overflow-y-auto space-y-0.5 rounded no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  style={{ maxHeight: "178px", scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
                   {Array.from({ length: 60 }).map((_, m) => {
                     const isSelected = m === minutes;
