@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --ink: #05080f;
+  --surface: rgba(7, 13, 22, 0.72);
+  --text: #f3f5f8;
+  --muted: #9ca9b8;
+  --cyan: #91c9d9;
+  --line: rgba(219, 235, 246, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--ink);
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(45, 85, 125, 0.24), transparent 42%),
+    linear-gradient(180deg, #070b15 0%, #05080f 55%, #020305 100%);
+}
+
+.font-display {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.star-sea-shell {
+  position: relative;
+  min-height: 100svh;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.star-sea-poster,
+.star-sea-canvas,
+.star-sea-vignette {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.star-sea-poster {
+  z-index: 0;
+  object-fit: cover;
+  object-position: center;
+  opacity: 1;
+  transition: opacity 800ms ease;
+}
+
+.star-sea-poster.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.star-sea-canvas {
+  z-index: 1;
+  display: block;
+  opacity: 0;
+  transition: opacity 1000ms ease;
+  touch-action: none;
+}
+
+.star-sea-canvas.is-ready {
+  opacity: 1;
+}
+
+.star-sea-vignette {
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(1, 4, 10, 0.36), transparent 27%),
+    linear-gradient(0deg, rgba(1, 3, 7, 0.75), transparent 38%),
+    radial-gradient(circle at center, transparent 42%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+.star-sea-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.38'/%3E%3C/svg%3E");
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

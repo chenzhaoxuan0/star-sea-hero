@@ -1,0 +1,9 @@
+node_modules
+.next
+.next-stale-*
+dev-server*.log
+*.tsbuildinfo
+out
+playwright-report
+test-results
+coverage
