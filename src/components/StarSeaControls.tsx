@@ -9,6 +9,7 @@ import {
   observerDateValue,
 } from "@/data/defaultObserver";
 import { CONSTELLATION_OPTIMAL_MAP } from "@/lib/astronomy/constellationFocus";
+import DarkDateTimePicker from "./DarkDateTimePicker";
 
 export default function StarSeaControls({
   observer,
@@ -306,13 +307,9 @@ export default function StarSeaControls({
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            <input
-              aria-label="调整观测时间"
-              type="datetime-local"
+            <DarkDateTimePicker
               value={observerDateValue(observer)}
-              onChange={(event) => onDateChange(event.target.value)}
-              style={{ colorScheme: "dark" }}
-              className="min-h-10 w-[148px] sm:w-[152px] shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+              onChange={onDateChange}
             />
             {/* Speed Multiplier Dropdown */}
             <select
