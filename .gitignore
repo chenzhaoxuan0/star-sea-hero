@@ -1,9 +1,54 @@
-node_modules
-.next
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing & Coverage
+/coverage
+/playwright-report
+/test-results
+/blob-report
+
+# Next.js build and export outputs
+/.next/
+/out/
 .next-stale-*
-dev-server*.log
+
+# Production & temp build artifacts
+/build
+/dist
 *.tsbuildinfo
-out
-playwright-report
-test-results
-coverage
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dev-server*.log
+
+# Environment variables & local configs
+.env*.local
+.env
+!.env.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
