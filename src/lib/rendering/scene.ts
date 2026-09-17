@@ -43,6 +43,7 @@ export function createScene(
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.12;
+  renderer.localClippingEnabled = true;
 
   renderer.debug.onShaderError = (gl, program, vertex, fragment) => {
     throw new Error(

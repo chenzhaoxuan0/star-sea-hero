@@ -162,19 +162,19 @@ export const OceanShader = {
       // Clean celestial horizon airglow matching skyShader (refined nocturnal indigo, zero orange/red)
       float forwardGlow = dot(normalize(vec2(viewDir.x, viewDir.z)), vec2(0.0, 1.0));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      vec3 cHorizonBase = vec3(0.038, 0.052, 0.125);
-      vec3 cAirglow = vec3(0.025, 0.038, 0.075);
-      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.10 * twilightIntensity);
+      vec3 cHorizonSky = vec3(0.036, 0.050, 0.125);
+      vec3 cAirglow = vec3(0.015, 0.025, 0.055);
+      vec3 horizonAtmosphere = cHorizonSky + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.12 * twilightIntensity);
 
       // Safe projected sampling with border guard
       vec2 projCoords = reflectUv.xy / reflectUv.w;
       vec3 reflectedSky = texture2DProj(tDiffuse, reflectUv).rgb;
 
       // Soft edge-guard: if wave distortion pushes UV near buffer borders, softly blend to horizon color
-      float edgeSafety = smoothstep(0.001, 0.030, projCoords.y) * 
-                         (1.0 - smoothstep(0.970, 0.999, projCoords.y)) *
-                         smoothstep(0.001, 0.030, projCoords.x) *
-                         (1.0 - smoothstep(0.970, 0.999, projCoords.x));
+      float edgeSafety = smoothstep(0.000, 0.015, projCoords.y) * 
+                         (1.0 - smoothstep(0.985, 1.000, projCoords.y)) *
+                         smoothstep(0.000, 0.015, projCoords.x) *
+                         (1.0 - smoothstep(0.985, 1.000, projCoords.x));
       reflectedSky = mix(horizonAtmosphere, reflectedSky, edgeSafety);
 
       // Beer-Lambert Water Medium Chromatic Glaze (subtle oceanic absorption filtering)
@@ -219,13 +219,19 @@ export const OceanShader = {
       vec3 finalColor = mix(waterBody, reflectedSky, fresnel);
 
       // 7. Seamless Aerial Perspective Atmosphere Horizon Blending
-      // Smoothly transitions extreme distant water boundary into horizon atmosphere while preserving crisp star reflections
-      float hazeByDist = 1.0 - exp(-dist * 0.0010);
-      float hazeByElevation = 1.0 - smoothstep(0.0001, 0.024, viewElevation);
+      // Smoothly transitions extreme distant water boundary into horizon atmosphere while preserving crisp star reflections.
+      // Zero black seam: grazing angle convergence replaces foreground water body with 100% mirror sky reflection,
+      // and extreme distance converges seamlessly into horizonAtmosphere matching the sky dome exactly.
+      float hazeByDist = 1.0 - exp(-dist * 0.0008);
+      float hazeByElevation = 1.0 - smoothstep(0.0001, 0.018, viewElevation);
       float totalHorizonBlend = clamp(max(hazeByDist, hazeByElevation), 0.0, 1.0);
-      totalHorizonBlend = pow(totalHorizonBlend, 2.0);
+      totalHorizonBlend = pow(totalHorizonBlend, 2.5);
 
-      finalColor = mix(finalColor, horizonAtmosphere, totalHorizonBlend * 0.70);
+      // Near the horizon (grazing angle), ensure full 100% specular mirror reflection (no dark abyss body tint)
+      finalColor = mix(finalColor, reflectedSky, hazeByElevation);
+
+      // At extreme distance, seamlessly unify with horizonAtmosphere
+      finalColor = mix(finalColor, horizonAtmosphere, totalHorizonBlend);
 
       gl_FragColor = vec4(finalColor, 1.0);
     }

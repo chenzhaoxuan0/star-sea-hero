@@ -200,16 +200,29 @@ export function createSky(
       varying vec3 vColor;
       varying float vAlpha;
       varying float vIsBright;
+      varying float vAltitude;
 
       void main() {
         vColor = color;
         vIsBright = isBright;
+        vAltitude = position.y;
+
+        // Strictly occlude any star below the sea level horizon (position.y <= 0.0)
+        // Discard immediately before rasterization by moving outside clip space
+        if (position.y <= 0.0) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          return;
+        }
 
         // Twinkle calculation
         float freq = twinkle.x;
         float phase = twinkle.y;
         float tw = 0.75 + 0.25 * sin(time * freq + phase) + 0.12 * cos(time * freq * 1.5 + phase * 0.7);
         vAlpha = clamp(tw, 0.3, 1.3);
+
+        // Soft celestial extinction as stars set into the sea surface (0.0 to 3.5 altitude units)
+        float horizonExtinction = smoothstep(0.0, 3.5, position.y);
+        vAlpha *= horizonExtinction;
 
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = size * pixelRatio * (vAlpha * 0.3 + 0.7);
@@ -220,8 +233,12 @@ export function createSky(
       varying vec3 vColor;
       varying float vAlpha;
       varying float vIsBright;
+      varying float vAltitude;
 
       void main() {
+        // Discard any star fragment below the water line
+        if (vAltitude <= 0.0) discard;
+
         vec2 p = gl_PointCoord - vec2(0.5);
         float d = length(p);
 
@@ -248,7 +265,8 @@ export function createSky(
 
   const starPoints = new THREE.Points(starGeometry, starMaterial);
 
-  // 3. Constellation Lines
+  // 3. Constellation Lines (Clipped at Horizon so submerged stars/lines never show through sea)
+  const horizonClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const starById = new Map(stars.map((s) => [s.id, s]));
   const defaultLines: number[] = [];
   const selectedLinesArray: number[] = [];
@@ -275,6 +293,20 @@ export function createSky(
           toStar.horizon.vector.z,
         ).normalize().multiplyScalar(418);
 
+        // If both stars are below the sea level horizon, omit segment completely
+        if (pFrom.y <= 0.0 && pTo.y <= 0.0) return;
+
+        // If one star has set into the sea, mathematically clip line segment at sea surface
+        if (pFrom.y <= 0.0) {
+          const t = (0.05 - pFrom.y) / (pTo.y - pFrom.y);
+          pFrom.lerp(pTo, t);
+          pFrom.y = 0.05;
+        } else if (pTo.y <= 0.0) {
+          const t = (0.05 - pTo.y) / (pFrom.y - pTo.y);
+          pTo.lerp(pFrom, t);
+          pTo.y = 0.05;
+        }
+
         const target = isSelected ? selectedLinesArray : defaultLines;
         target.push(pFrom.x, pFrom.y, pFrom.z, pTo.x, pTo.y, pTo.z);
       });
@@ -289,6 +321,7 @@ export function createSky(
     color: "#7faac9",
     transparent: true,
     opacity: 0.28,
+    clippingPlanes: [horizonClipPlane],
     depthWrite: false,
     depthTest: false,
   });
@@ -300,6 +333,7 @@ export function createSky(
     color: "#38bdf8",
     transparent: true,
     opacity: 0.95,
+    clippingPlanes: [horizonClipPlane],
     depthWrite: false,
     depthTest: false,
   });

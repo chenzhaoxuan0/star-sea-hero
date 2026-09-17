@@ -128,17 +128,17 @@ export const SkyShader = {
       vec3 cZenith       = vec3(0.007, 0.010, 0.026); // Deep cosmic void
       vec3 cHighSky      = vec3(0.015, 0.024, 0.065); // Deep midnight navy
       vec3 cMidSky       = vec3(0.026, 0.038, 0.098); // Rich nocturnal indigo
-      vec3 cLowSky       = vec3(0.036, 0.048, 0.120); // Soft celestial blue-indigo
+      vec3 cHorizonSky   = vec3(0.036, 0.050, 0.125); // Exact unified nocturnal horizon tone
 
       float h = max(0.0, elevation);
       vec3 skyColor = cZenith;
-      skyColor = mix(skyColor, cHighSky, 1.0 - smoothstep(0.48, 0.85, h));
-      skyColor = mix(skyColor, cMidSky,  1.0 - smoothstep(0.24, 0.58, h));
-      skyColor = mix(skyColor, cLowSky,  1.0 - smoothstep(0.03, 0.30, h));
+      skyColor = mix(skyColor, cHighSky,    1.0 - smoothstep(0.48, 0.85, h));
+      skyColor = mix(skyColor, cMidSky,     1.0 - smoothstep(0.24, 0.58, h));
+      skyColor = mix(skyColor, cHorizonSky, 1.0 - smoothstep(0.00, 0.28, h));
 
       // 2. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
       // Flows seamlessly all the way down to sea level, unblocked by horizon haze
-      if (elevation > -0.002) {
+      if (elevation > -0.005) {
         vec3 vEq = (milkyWayMatrix * vec4(ray, 0.0)).xyz;
         float mwZenith = acos(clamp(vEq.z, -1.0, 1.0));
         float v = mwZenith / 3.141592653589793;
@@ -147,11 +147,9 @@ export const SkyShader = {
 
         vec4 mwTex = texture2D(uMilkyWayMap, vec2(u, v));
 
-        // Gentle edge falloff right at the 0.0 water line to ensure clean horizon contact
-        float mwExtinction = smoothstep(-0.001, 0.010, elevation);
+        // Smooth continuous transition across water line
+        float mwExtinction = clamp(elevation * 100.0 + 0.15, 0.0, 1.0);
 
-        // Astrophotography color grading:
-        // Film-like tonal compression: preserves intricate stardust filaments and dark rifts without blown-out clipping
         vec3 mwRgb = mwTex.rgb;
         vec3 mwGraded = pow(mwRgb, vec3(1.32)) * 1.15;
         mwGraded = (mwGraded / (vec3(1.0) + mwGraded * 0.28)) * 0.96;
@@ -159,18 +157,12 @@ export const SkyShader = {
         skyColor += mwGraded * (mwExtinction * uMilkyWayIntensity);
       }
 
-      // 3. Horizon Atmosphere Gradient with Smooth Opacity Falloff (100% at sea level -> 0% upward into sky)
-      // Sea level is solid 100% opacity, but gracefully fades to 0% upward across gradient height so stars and Milky Way behind remain visible
+      // 3. Ethereal Horizon Airglow (Additive, never covers or blackens stars/Milky Way!)
       float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      vec3 cHorizonBase = vec3(0.038, 0.052, 0.125); // Refined midnight celestial indigo
-      vec3 cAirglow = vec3(0.025, 0.038, 0.075);
-      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.10 * twilightIntensity);
-
-      // Opacity gradient: 100% right at sea level (h = 0.0), rapidly and gracefully fading to 0% by h = 0.08
-      float horizonAlpha = 1.0 - smoothstep(0.00, 0.08, h);
-      horizonAlpha = pow(horizonAlpha, 2.0); // Soft non-linear opacity curve
-      skyColor = mix(skyColor, horizonAtmosphere, horizonAlpha);
+      float twilightElev = exp(-pow(h * 32.0, 1.25));
+      vec3 cAirglow = vec3(0.015, 0.025, 0.055);
+      skyColor += cAirglow * (twilightElev * (0.40 + 0.60 * azimuthFactor) * 0.12 * twilightIntensity);
 
       // 4. Natural Nocturnal Atmospheric Clouds / Mist (Adjustable)
       if (uCloudDensity > 0.01 && elevation > 0.02) {
@@ -198,10 +190,10 @@ export const SkyShader = {
         skyColor = mix(skyColor, cloudColor, cloudAlpha * 0.60);
       }
 
-      // 5. Below Horizon atmospheric haze: seamlessly continues into oceanic distance haze
+      // 5. Below Horizon atmospheric haze: seamlessly continues the exact horizon tone into the depths
       if (elevation < 0.0) {
-        vec3 cOceanHaze = vec3(0.080, 0.075, 0.125);
-        skyColor = mix(skyColor, cOceanHaze, smoothstep(0.0, -0.35, elevation));
+        vec3 cAbyssHaze = vec3(0.008, 0.012, 0.025);
+        skyColor = mix(cHorizonSky, cAbyssHaze, clamp(-elevation * 5.0, 0.0, 1.0));
       }
 
       gl_FragColor = vec4(skyColor, 1.0);
