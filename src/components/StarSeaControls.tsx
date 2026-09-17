@@ -317,7 +317,7 @@ export default function StarSeaControls({
           <button
             type="button"
             onClick={onEnterImmersive}
-            title="完全隐藏全部UI界面（四角文字、中心文字与操作栏）；在画面任意位置连续点击 3 次即可重现界面"
+            title="完全隐藏全部UI界面，沉浸式观看星辰大海"
             className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-black/40 px-3 py-1 text-xs font-medium text-cyan/90 transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
           >
             <Maximize2 size={13} aria-hidden="true" className="text-cyan" />

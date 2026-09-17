@@ -68,9 +68,9 @@ test("immersive mode button completely hides all UI and restores after 3 clicks 
   await expect(immersiveBtn).toBeVisible();
   await expect(immersiveBtn).toHaveText("沉浸模式");
 
-  // Verify button title explains the 3-click restoration
+  // Verify button title attribute
   const titleAttr = await immersiveBtn.getAttribute("title");
-  expect(titleAttr).toContain("3 次");
+  expect(titleAttr).toContain("沉浸式观看星辰大海");
 
   // 1. Enter Immersive Mode
   await immersiveBtn.click();
