@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cloud, Globe2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
+import { Cloud, Eye, EyeOff, Globe2, Maximize2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
 import type { CloudSettings, ConstellationDefinition, Observer } from "@/types/astronomy";
 import {
   LATITUDE_PRESETS,
@@ -29,6 +29,10 @@ export default function StarSeaControls({
   onLatitudeChange,
   cloudSettings,
   onCloudSettingsChange,
+  showCenterTitle = true,
+  onToggleCenterTitle,
+  isImmersive = false,
+  onEnterImmersive,
 }: {
   observer: Observer;
   constellations: ConstellationDefinition[];
@@ -47,6 +51,10 @@ export default function StarSeaControls({
   onLatitudeChange: (latId: string) => void;
   cloudSettings: CloudSettings;
   onCloudSettingsChange: (settings: CloudSettings) => void;
+  showCenterTitle?: boolean;
+  onToggleCenterTitle?: () => void;
+  isImmersive?: boolean;
+  onEnterImmersive?: () => void;
 }) {
   const [showCloudPopover, setShowCloudPopover] = useState(false);
   const descriptionScrollRef = useRef<HTMLDivElement>(null);
@@ -81,15 +89,28 @@ export default function StarSeaControls({
   }, [selectedId]);
 
   return (
-    <div className="star-sea-panel pointer-events-auto absolute bottom-12 left-1/2 z-20 w-[min(94vw,840px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 sm:bottom-10 sm:p-4 backdrop-blur-md">
+    <div
+      className={`star-sea-panel absolute bottom-12 left-1/2 z-20 w-[min(95vw,940px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 backdrop-blur-md transition-all duration-500 sm:bottom-10 sm:p-4 ${
+        isImmersive
+          ? "pointer-events-none opacity-0 translate-y-6 scale-95"
+          : "pointer-events-auto opacity-100 translate-y-0 scale-100"
+      }`}
+    >
       {/* Top Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-white/55">
-          <Rotate3d size={13} aria-hidden="true" />
-          <span>全天自由星野视角</span>
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-white/55">
+          <span className="flex items-center gap-1.5">
+            <Rotate3d size={13} aria-hidden="true" />
+            <span>全天视角</span>
+          </span>
+          <span className="text-white/25">·</span>
+          <span className="flex items-center gap-1 text-white/60">
+            <Globe2 size={12} aria-hidden="true" />
+            <span>{observer.label}</span>
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Reset Full Sky View Button (placed to the left of Clouds & Sea) */}
           {selectedId && (
             <button
@@ -117,7 +138,7 @@ export default function StarSeaControls({
             >
               <Cloud size={13} aria-hidden="true" className={showCloudPopover ? "text-cyan" : "text-white/70"} />
               <span>
-                云雾: {cloudSettings.density === 0 ? "晴空无云" : `${Math.round(cloudSettings.density * 50)}%`}
+                云雾: {cloudSettings.density === 0 ? "晴朗" : `${Math.round(cloudSettings.density * 50)}%`}
               </span>
             </button>
 
@@ -252,27 +273,56 @@ export default function StarSeaControls({
           <button
             type="button"
             onClick={onToggleWaveMode}
-            title="切换海面状态：镜面平静或微波起伏"
+            title="切换海面状态：镜面平静 (水天一色) 或微波起伏 (柔波轻抚)"
             className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white/90 transition-all hover:border-cyan hover:text-white cursor-pointer"
           >
             {waveMode === "calm" ? (
               <>
                 <Sparkles size={13} aria-hidden="true" className="text-white/70 animate-pulse" />
-                <span>海面：平静倒影 (水天一色)</span>
+                <span>海面: 镜面</span>
               </>
             ) : (
               <>
                 <Waves size={13} aria-hidden="true" className="text-white/70" />
-                <span>海面：微波起伏 (柔波轻抚)</span>
+                <span>海面: 微波</span>
               </>
             )}
           </button>
-        </div>
 
-        {/* Coordinate indicator */}
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-white/60">
-          <Globe2 size={13} aria-hidden="true" />
-          <span>{observer.label}</span>
+          {/* Center Title Toggle Button */}
+          <button
+            type="button"
+            onClick={onToggleCenterTitle}
+            title={showCenterTitle ? "隐藏画面中间的【星辰大海】标题文字" : "显示画面中间的【星辰大海】标题文字"}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+              !showCenterTitle
+                ? "border-cyan/40 bg-cyan/15 text-cyan hover:border-cyan hover:text-white"
+                : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:text-white"
+            }`}
+          >
+            {!showCenterTitle ? (
+              <>
+                <Eye size={13} aria-hidden="true" className="text-cyan" />
+                <span>显示标题</span>
+              </>
+            ) : (
+              <>
+                <EyeOff size={13} aria-hidden="true" className="text-white/70" />
+                <span>隐藏标题</span>
+              </>
+            )}
+          </button>
+
+          {/* Immersive Mode Button */}
+          <button
+            type="button"
+            onClick={onEnterImmersive}
+            title="完全隐藏全部UI界面（四角文字、中心文字与操作栏）；在画面任意位置连续点击 3 次即可重现界面"
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-black/40 px-3 py-1 text-xs font-medium text-cyan/90 transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
+          >
+            <Maximize2 size={13} aria-hidden="true" className="text-cyan" />
+            <span>沉浸模式 (连点3次)</span>
+          </button>
         </div>
       </div>
 
