@@ -89,3 +89,92 @@ test("diurnal timelapse is on by default and reset button appears to the left of
 
   expect(errors).toEqual([]);
 });
+
+test("bottom description row maintains constant panel height on constellation switch and scrolls horizontally with mouse wheel", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+
+  await page.goto("/");
+  const canvas = page.getByTestId("star-sea-canvas");
+  await expect(canvas).toHaveClass(/is-ready/, { timeout: 30_000 });
+
+  const panel = page.locator(".star-sea-panel");
+  await expect(panel).toBeVisible();
+
+  // 1. Initial unselected panel height
+  const initialBox = await panel.boundingBox();
+  expect(initialBox).not.toBeNull();
+  const initialHeight = initialBox!.height;
+
+  const descRow = page.locator(".star-sea-panel .no-scrollbar");
+  await expect(descRow).toBeVisible();
+  const initialDescBox = await descRow.boundingBox();
+  expect(initialDescBox).not.toBeNull();
+
+  // 2. Select Cygnus (天鹅座) which has the long description
+  const constellationSelect = page.locator('select[aria-label="选择星宿天区"]');
+  await constellationSelect.selectOption("cygnus");
+  await expect(page.locator("text=已对准【天鹅座")).toBeVisible();
+
+  // 3. Description row height must NOT jump/increase (fixed h-6 = 24px)
+  const cygnusDescBox = await descRow.boundingBox();
+  expect(cygnusDescBox).not.toBeNull();
+  expect(Math.abs(cygnusDescBox!.height - initialDescBox!.height)).toBeLessThanOrEqual(1);
+
+  const cygnusBox = await panel.boundingBox();
+  expect(cygnusBox).not.toBeNull();
+
+  // On desktop, panel height between unselected and Cygnus is completely identical (<= 1px)
+  if (testInfo.project.name === "desktop") {
+    expect(Math.abs(cygnusBox!.height - initialHeight)).toBeLessThanOrEqual(1);
+  }
+
+  // 4. Verify description row contains the full text and is single-line with overflow
+  const scrollMetrics = await descRow.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+    scrollLeft: el.scrollLeft,
+    whiteSpace: window.getComputedStyle(el).whiteSpace,
+  }));
+
+  expect(scrollMetrics.whiteSpace).toBe("nowrap");
+  // scrollWidth should exceed clientWidth because Cygnus has long badges + description
+  expect(scrollMetrics.scrollWidth).toBeGreaterThan(scrollMetrics.clientWidth);
+  expect(scrollMetrics.scrollLeft).toBe(0);
+
+  // 5. Test mouse wheel scrolling on the description row
+  // Dispatch a wheel event with deltaY: 120 over the description element
+  await descRow.dispatchEvent("wheel", { deltaY: 120, deltaX: 0 });
+
+  // Verify scrollLeft moved horizontally to the right
+  const scrolledMetrics = await descRow.evaluate((el) => el.scrollLeft);
+  expect(scrolledMetrics).toBeGreaterThan(0);
+
+  // Take screenshot showing bottom panel
+  const screenshotPath = testInfo.outputPath("bottom_panel_zero_jump_wheel_scroll.png");
+  await page.screenshot({ path: screenshotPath });
+  await testInfo.attach("bottom_panel_zero_jump", { path: screenshotPath, contentType: "image/png" });
+
+  // 6. Switching to another constellation (Orion) of different description length:
+  // Panel height and description row height must remain completely identical (zero layout jump)
+  await constellationSelect.selectOption("orion");
+  await expect(page.locator("text=已对准【猎户座")).toBeVisible();
+
+  const orionBox = await panel.boundingBox();
+  expect(Math.abs(orionBox!.height - cygnusBox!.height)).toBeLessThanOrEqual(1);
+
+  const orionDescBox = await descRow.boundingBox();
+  expect(Math.abs(orionDescBox!.height - cygnusDescBox!.height)).toBeLessThanOrEqual(1);
+
+  // Scroll resets to 0
+  const orionScrollLeft = await descRow.evaluate((el) => el.scrollLeft);
+  expect(orionScrollLeft).toBe(0);
+
+  expect(errors).toEqual([]);
+});
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Cloud, Globe2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
 import type { CloudSettings, ConstellationDefinition, Observer } from "@/types/astronomy";
 import {
@@ -49,8 +49,36 @@ export default function StarSeaControls({
   onCloudSettingsChange: (settings: CloudSettings) => void;
 }) {
   const [showCloudPopover, setShowCloudPopover] = useState(false);
+  const descriptionScrollRef = useRef<HTMLDivElement>(null);
   const selected = constellations.find((item) => item.id === selectedId);
   const optimalInfo = selectedId ? CONSTELLATION_OPTIMAL_MAP[selectedId] : null;
+
+  // Translate vertical mouse wheel scrolling into horizontal scroll on description row
+  useEffect(() => {
+    const el = descriptionScrollRef.current;
+    if (!el) return;
+
+    const onWheelNative = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) >= Math.abs(e.deltaX) && e.deltaY !== 0) {
+        if (el.scrollWidth > el.clientWidth) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+        }
+      }
+    };
+
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheelNative);
+    };
+  }, []);
+
+  // When switching constellations, reset description scroll position to start
+  useEffect(() => {
+    if (descriptionScrollRef.current) {
+      descriptionScrollRef.current.scrollLeft = 0;
+    }
+  }, [selectedId]);
 
   return (
     <div className="star-sea-panel pointer-events-auto absolute bottom-12 left-1/2 z-20 w-[min(94vw,840px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 sm:bottom-10 sm:p-4 backdrop-blur-md">
@@ -356,22 +384,36 @@ export default function StarSeaControls({
         </div>
       </div>
 
-      {/* Selected Constellation Contextual Description */}
-      {selected ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs text-white/70">
-          <span className="font-semibold text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
-          {optimalInfo && (
-            <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium text-cyan shadow-sm shadow-cyan/10">
-              已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
+      {/* Bottom Contextual Description Row (Fixed-height, zero-jump, wheel-scrollable, hidden scrollbar) */}
+      <div className="mt-2.5 min-w-0 border-t border-white/10 pt-2">
+        <div
+          ref={descriptionScrollRef}
+          title={
+            selected
+              ? `${selected.nameZh} / ${selected.nameEn}：${selected.descriptionZh}（可使用鼠标滚轮横向滚动浏览）`
+              : undefined
+          }
+          className="no-scrollbar flex h-6 min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs text-white/70 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {selected ? (
+            <>
+              <span className="shrink-0 font-semibold text-white">
+                已对准【{selected.nameZh} / {selected.nameEn}】
+              </span>
+              {optimalInfo && (
+                <span className="shrink-0 rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium leading-none text-cyan shadow-sm shadow-cyan/10">
+                  已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
+                </span>
+              )}
+              <span className="shrink-0 text-white/60">：{selected.descriptionZh}</span>
+            </>
+          ) : (
+            <span className="shrink-0 text-[11px] text-white/45">
+              拖拽星空自由漫游；选择星宿天区可自动跳转至最佳观测经纬度与时间并将镜头居中对准；点击“流转”可观测恒星周日视运动。
             </span>
           )}
-          <span className="text-white/60">：{selected.descriptionZh}</span>
         </div>
-      ) : (
-        <div className="mt-2 text-[11px] text-white/45">
-          拖拽星空自由漫游；选择星宿天区可自动跳转至最佳观测经纬度与时间并将镜头居中对准；点击“流转”可观测恒星周日视运动。
-        </div>
-      )}
+      </div>
     </div>
   );
 }
