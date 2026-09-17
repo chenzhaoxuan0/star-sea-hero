@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cloud, Globe2, Pause, Play, Rotate3d, Sparkles, Star, Waves } from "lucide-react";
+import { Cloud, Globe2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
 import type { CloudSettings, ConstellationDefinition, Observer } from "@/types/astronomy";
 import {
   LATITUDE_PRESETS,
@@ -62,6 +62,19 @@ export default function StarSeaControls({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Reset Full Sky View Button (placed to the left of Clouds & Sea) */}
+          {selectedId && (
+            <button
+              type="button"
+              onClick={() => onSelect("")}
+              title="重置全天视角（退出当前星宿特写）"
+              className="inline-flex items-center gap-1.5 rounded-full border border-cyan/40 bg-black/40 px-3 py-1 text-xs font-medium text-cyan transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              <span>重置全天视角</span>
+            </button>
+          )}
+
           {/* Cloud Settings Toggle */}
           <div className="relative">
             <button
@@ -345,23 +358,14 @@ export default function StarSeaControls({
 
       {/* Selected Constellation Contextual Description */}
       {selected ? (
-        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-xs text-white/70">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
-            {optimalInfo && (
-              <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium text-cyan shadow-sm shadow-cyan/10">
-                已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
-              </span>
-            )}
-            <span className="text-white/60">：{selected.descriptionZh}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => onSelect("")}
-            className="shrink-0 rounded-md border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-[11px] text-cyan transition-all hover:bg-cyan/20 hover:text-white"
-          >
-            重置全天视角
-          </button>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-2 text-xs text-white/70">
+          <span className="font-semibold text-white">已对准【{selected.nameZh} / {selected.nameEn}】</span>
+          {optimalInfo && (
+            <span className="rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium text-cyan shadow-sm shadow-cyan/10">
+              已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
+            </span>
+          )}
+          <span className="text-white/60">：{selected.descriptionZh}</span>
         </div>
       ) : (
         <div className="mt-2 text-[11px] text-white/45">

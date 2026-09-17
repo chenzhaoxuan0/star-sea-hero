@@ -30,8 +30,8 @@ export default function StarSeaHero() {
   const [selectedTimezone, setSelectedTimezone] = useState("UTC+8");
   const [selectedLatitude, setSelectedLatitude] = useState("35N");
 
-  // Auto-lapse playback state & speed (1x = 1 min/sec, 2x = 2 min/sec, etc.)
-  const [isPlaying, setIsPlaying] = useState(false);
+  // Auto-lapse playback state & speed (1x = 1 min/sec, 2x = 2 min/sec, etc.) - default on
+  const [isPlaying, setIsPlaying] = useState(true);
   const [playSpeed, setPlaySpeed] = useState(1);
 
   // Nocturnal clouds & mist settings (default to 0.0 clear sky so Milky Way is completely unobstructed)

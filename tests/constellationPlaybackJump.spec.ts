@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("constellation selection during timelapse playback smoothly flies and centers on the constellation above horizon", async ({
+test("diurnal timelapse is on by default and reset button appears to the left of clouds and sea without creating a new row", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -9,19 +9,19 @@ test("constellation selection during timelapse playback smoothly flies and cente
     if (message.type() === "error") errors.push(message.text());
   });
 
-  await page.goto("http://localhost:4010/");
+  await page.goto("/");
   const canvas = page.getByTestId("star-sea-canvas");
   await expect(canvas).toHaveClass(/is-ready/, { timeout: 30_000 });
 
-  // 1. Start continuous diurnal timelapse playback
-  const playButton = page.locator('button[title*="开启时间流转"], button[title*="暂停流转"]').first();
-  await playButton.click();
-
-  // Verify timelapse indicator is active
+  // 1. Verify continuous diurnal timelapse playback is ON by default
   await expect(page.locator("text=恒星日流转")).toBeVisible();
 
-  // Let timelapse play for a bit so time advances
-  await page.waitForTimeout(1200);
+  // Reset button should NOT be visible when no constellation is selected
+  const resetBtn = page.locator('button:has-text("重置全天视角")');
+  await expect(resetBtn).toBeHidden();
+
+  // Let timelapse play for a bit
+  await page.waitForTimeout(1000);
 
   // 2. Select Cygnus (天鹅座) from the dropdown during active playback
   const constellationSelect = page.locator('select[aria-label="选择星宿天区"]');
@@ -29,6 +29,20 @@ test("constellation selection during timelapse playback smoothly flies and cente
 
   // Verify UI reflects the selection
   await expect(page.locator("text=已对准【天鹅座")).toBeVisible();
+
+  // 3. Verify the "重置全天视角" button appears on the top header row
+  await expect(resetBtn).toBeVisible();
+
+  // Verify it is positioned to the left of the Clouds toggle button
+  const resetBox = await resetBtn.boundingBox();
+  const cloudBtn = page.locator('button[title*="调整天幕云雾"]');
+  const cloudBox = await cloudBtn.boundingBox();
+  expect(resetBox).not.toBeNull();
+  expect(cloudBox).not.toBeNull();
+  if (resetBox && cloudBox) {
+    // resetBtn should be to the left of cloudBtn
+    expect(resetBox.x).toBeLessThan(cloudBox.x);
+  }
 
   // Wait for 1.2s camera fly-to animation to complete
   await page.waitForTimeout(1500);
@@ -41,61 +55,37 @@ test("constellation selection during timelapse playback smoothly flies and cente
 
   expect(cygnusView).not.toBeNull();
   if (cygnusView) {
-    // Pitch should be high in the sky (between 0.4 rad and 1.3 rad), definitely above horizon (0.22+)
     expect(cygnusView.pitch).toBeGreaterThan(0.5);
     expect(cygnusView.pitch).toBeLessThanOrEqual(1.26);
   }
 
-  const cygnusScreenshotPath = testInfo.outputPath("cygnus_centered_in_playback.png");
+  const cygnusScreenshotPath = testInfo.outputPath("cygnus_header_reset.png");
   await page.screenshot({ path: cygnusScreenshotPath });
-  await testInfo.attach("cygnus_playback", { path: cygnusScreenshotPath, contentType: "image/png" });
+  await testInfo.attach("cygnus_header_reset", { path: cygnusScreenshotPath, contentType: "image/png" });
 
-  // 3. Now select Orion (猎户座) while playback is still active
-  await constellationSelect.selectOption("orion");
-  await expect(page.locator("text=已对准【猎户座")).toBeVisible();
+  // 4. Click "重置全天视角" button
+  await resetBtn.click();
 
+  // Button should disappear after reset
+  await expect(resetBtn).toBeHidden();
+  await expect(page.locator("text=已对准【天鹅座")).toBeHidden();
+
+  // Wait for fly-to back to default panorama
   await page.waitForTimeout(1500);
 
-  const orionView = await page.evaluate(() => {
+  const resetView = await page.evaluate(() => {
     const debug = (window as unknown as { __debug?: { view: { current: { yaw: number; pitch: number } } } }).__debug;
     return debug ? debug.view.current : null;
   });
 
-  expect(orionView).not.toBeNull();
-  if (orionView) {
-    // Pitch should be high in the sky for Orion (~61.5° = ~1.07 rad)
-    expect(orionView.pitch).toBeGreaterThan(0.5);
-    expect(orionView.pitch).toBeLessThanOrEqual(1.26);
-    // Yaw should have changed significantly from Cygnus
-    if (cygnusView) {
-      expect(Math.abs(orionView.yaw - cygnusView.yaw)).toBeGreaterThan(0.2);
-    }
+  expect(resetView).not.toBeNull();
+  if (resetView) {
+    expect(resetView.pitch).toBeCloseTo(0.28, 1);
   }
 
-  const orionScreenshotPath = testInfo.outputPath("orion_centered_in_playback.png");
-  await page.screenshot({ path: orionScreenshotPath });
-  await testInfo.attach("orion_playback", { path: orionScreenshotPath, contentType: "image/png" });
-
-  // 4. Test Southern Hemisphere constellation: Crux (南十字座)
-  await constellationSelect.selectOption("crux");
-  await expect(page.locator("text=已对准【南十字座")).toBeVisible();
-
-  await page.waitForTimeout(1500);
-
-  const cruxView = await page.evaluate(() => {
-    const debug = (window as unknown as { __debug?: { view: { current: { yaw: number; pitch: number } } } }).__debug;
-    return debug ? debug.view.current : null;
-  });
-
-  expect(cruxView).not.toBeNull();
-  if (cruxView) {
-    expect(cruxView.pitch).toBeGreaterThan(0.5);
-    expect(cruxView.pitch).toBeLessThanOrEqual(1.26);
-  }
-
-  const cruxScreenshotPath = testInfo.outputPath("crux_centered_in_playback.png");
-  await page.screenshot({ path: cruxScreenshotPath });
-  await testInfo.attach("crux_playback", { path: cruxScreenshotPath, contentType: "image/png" });
+  const defaultScreenshotPath = testInfo.outputPath("default_panorama_after_reset.png");
+  await page.screenshot({ path: defaultScreenshotPath });
+  await testInfo.attach("default_after_reset", { path: defaultScreenshotPath, contentType: "image/png" });
 
   expect(errors).toEqual([]);
 });

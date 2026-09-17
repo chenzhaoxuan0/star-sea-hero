@@ -16,6 +16,15 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4010",
     trace: "retain-on-failure",
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
+    launchOptions: {
+      args: [
+        "--use-gl=angle",
+        "--use-angle=default",
+        "--enable-webgl",
+        "--ignore-gpu-blocklist",
+        "--no-sandbox",
+      ],
+    },
   },
   webServer,
   projects: [

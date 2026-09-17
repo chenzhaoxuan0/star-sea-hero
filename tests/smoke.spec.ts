@@ -4,7 +4,7 @@ test("renders the star sea shell without waiting for WebGL", async ({ page }) =>
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "星辰大海" })).toBeVisible();
-  await expect(page.locator('img[src="/star-sea-poster.webp"]')).toBeVisible();
+  await expect(page.locator('[data-testid="star-sea-canvas"]')).toBeVisible();
   await expect(page.locator("#explore")).toBeVisible();
 });
 

@@ -22,7 +22,7 @@ export default function StarSeaCanvas({
   selectedTimezone = "UTC+8",
   waveMode = "rippled",
   cloudSettings,
-  isPlaying = false,
+  isPlaying = true,
   playSpeed = 1,
   onObserverDateUpdate,
 }: {
