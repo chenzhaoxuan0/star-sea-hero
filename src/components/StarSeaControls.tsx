@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cloud, Eye, EyeOff, Globe2, Maximize2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
+import { ChevronDown, Cloud, Eye, EyeOff, Globe2, Maximize2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
 import type { CloudSettings, ConstellationDefinition, Observer } from "@/types/astronomy";
 import {
   LATITUDE_PRESETS,
@@ -334,56 +334,65 @@ export default function StarSeaControls({
             <Star size={12} className="text-cyan shrink-0" />
             <span className="truncate">星宿天区 (选择跳转)</span>
           </span>
-          <select
-            aria-label="选择星宿天区"
-            value={selectedId}
-            onChange={(event) => onSelect(event.target.value)}
-            style={{ colorScheme: "dark" }}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
-          >
-            <option value="" className="bg-[#0b1324] text-white">探索全天星图 (未指定)</option>
-            {constellations.map((constellation) => (
-              <option key={constellation.id} value={constellation.id} className="bg-[#0b1324] text-white">
-                {constellation.nameZh} / {constellation.nameEn}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex items-center min-w-0">
+            <select
+              aria-label="选择星宿天区"
+              value={selectedId}
+              onChange={(event) => onSelect(event.target.value)}
+              style={{ colorScheme: "dark" }}
+              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+            >
+              <option value="" className="bg-[#0b1324] text-white">探索全天星图 (未指定)</option>
+              {constellations.map((constellation) => (
+                <option key={constellation.id} value={constellation.id} className="bg-[#0b1324] text-white">
+                  {constellation.nameZh} / {constellation.nameEn}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 text-white/60 shrink-0" />
+          </div>
         </label>
 
         {/* Observation Timezone */}
         <label className="grid gap-1 text-xs text-white/70 min-w-0">
           <span className="truncate">观测经度 / 时区</span>
-          <select
-            aria-label="选择观测时区"
-            value={selectedTimezone}
-            onChange={(event) => onTimezoneChange(event.target.value)}
-            style={{ colorScheme: "dark" }}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
-          >
-            {TIMEZONE_PRESETS.map((tz) => (
-              <option key={tz.id} value={tz.id} className="bg-[#0b1324] text-white">
-                {tz.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex items-center min-w-0">
+            <select
+              aria-label="选择观测时区"
+              value={selectedTimezone}
+              onChange={(event) => onTimezoneChange(event.target.value)}
+              style={{ colorScheme: "dark" }}
+              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+            >
+              {TIMEZONE_PRESETS.map((tz) => (
+                <option key={tz.id} value={tz.id} className="bg-[#0b1324] text-white">
+                  {tz.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 text-white/60 shrink-0" />
+          </div>
         </label>
 
         {/* Observation Latitude */}
         <label className="grid gap-1 text-xs text-white/70 min-w-0">
           <span className="truncate">观测纬度带</span>
-          <select
-            aria-label="选择观测纬度"
-            value={selectedLatitude}
-            onChange={(event) => onLatitudeChange(event.target.value)}
-            style={{ colorScheme: "dark" }}
-            className="min-h-10 w-full min-w-0 truncate rounded-xl border border-white/15 bg-black/40 px-2.5 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
-          >
-            {LATITUDE_PRESETS.map((lat) => (
-              <option key={lat.id} value={lat.id} className="bg-[#0b1324] text-white">
-                {lat.nameZh}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex items-center min-w-0">
+            <select
+              aria-label="选择观测纬度"
+              value={selectedLatitude}
+              onChange={(event) => onLatitudeChange(event.target.value)}
+              style={{ colorScheme: "dark" }}
+              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+            >
+              {LATITUDE_PRESETS.map((lat) => (
+                <option key={lat.id} value={lat.id} className="bg-[#0b1324] text-white">
+                  {lat.nameZh}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 text-white/60 shrink-0" />
+          </div>
         </label>
 
         {/* Date & Time with Playback Streamer - Compact Style */}
@@ -403,21 +412,24 @@ export default function StarSeaControls({
               onChange={onDateChange}
             />
             {/* Speed Multiplier Dropdown */}
-            <select
-              aria-label="选择播放倍速"
-              value={playSpeed}
-              onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
-              title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
-              style={{ colorScheme: "dark" }}
-              className="min-h-10 shrink-0 rounded-xl border border-white/15 bg-black/40 px-2 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
-            >
-              <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
-              <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>
-              <option value={5} className="bg-[#0b1324] text-white">5x (5分/秒)</option>
-              <option value={10} className="bg-[#0b1324] text-white">10x (10分/秒)</option>
-              <option value={30} className="bg-[#0b1324] text-white">30x (30分/秒)</option>
-              <option value={60} className="bg-[#0b1324] text-white">60x (1小时/秒)</option>
-            </select>
+            <div className="relative flex items-center shrink-0">
+              <select
+                aria-label="选择播放倍速"
+                value={playSpeed}
+                onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
+                title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
+                style={{ colorScheme: "dark" }}
+                className="min-h-10 shrink-0 appearance-none rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+              >
+                <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
+                <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>
+                <option value={5} className="bg-[#0b1324] text-white">5x (5分/秒)</option>
+                <option value={10} className="bg-[#0b1324] text-white">10x (10分/秒)</option>
+                <option value={30} className="bg-[#0b1324] text-white">30x (30分/秒)</option>
+                <option value={60} className="bg-[#0b1324] text-white">60x (1小时/秒)</option>
+              </select>
+              <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 text-cyan/70 shrink-0" />
+            </div>
             <button
               type="button"
               onClick={onTogglePlay}

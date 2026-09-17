@@ -141,7 +141,7 @@ export default function DarkDateTimePicker({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="点开观测时间日历选择器"
         title="点开暗色星空日历与时间调节面板"
-        className={`flex min-h-10 w-[148px] sm:w-[154px] shrink-0 items-center justify-between rounded-xl border px-2.5 text-xs text-white outline-none transition-all cursor-pointer ${
+        className={`flex min-h-10 w-[148px] sm:w-[154px] shrink-0 items-center justify-between rounded-xl border px-3 text-xs text-white outline-none transition-all cursor-pointer ${
           isOpen
             ? "border-cyan bg-cyan/15 text-white shadow-lg shadow-cyan/20"
             : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:bg-black/50"

@@ -178,3 +178,50 @@ test("bottom description row maintains constant panel height on constellation sw
   expect(errors).toEqual([]);
 });
 
+test("bottom dock dropdown selects have symmetrical left text margin and right arrow margin (12px)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("star-sea-canvas");
+  await expect(canvas).toHaveClass(/is-ready/, { timeout: 30_000 });
+
+  const selectAriaLabels = [
+    "选择星宿天区",
+    "选择观测时区",
+    "选择观测纬度",
+    "选择播放倍速",
+  ];
+
+  for (const label of selectAriaLabels) {
+    const select = page.locator(`select[aria-label="${label}"]`);
+    await expect(select).toBeVisible();
+
+    // 1. Native arrow suppressed via appearance: none
+    const appearance = await select.evaluate((el) => window.getComputedStyle(el).appearance);
+    expect(appearance).toBe("none");
+
+    // 2. Left padding of select is 12px (pl-3)
+    const paddingLeft = await select.evaluate((el) => window.getComputedStyle(el).paddingLeft);
+    expect(paddingLeft).toBe("12px");
+
+    // 3. Parent container has relative positioning with custom ChevronDown icon
+    const parent = select.locator("..");
+    const arrow = parent.locator("svg").first();
+    await expect(arrow).toBeVisible();
+
+    // 4. Calculate exact spacing between select right edge and arrow icon right edge
+    const parentBox = await parent.boundingBox();
+    const arrowBox = await arrow.boundingBox();
+    expect(parentBox).not.toBeNull();
+    expect(arrowBox).not.toBeNull();
+
+    if (parentBox && arrowBox) {
+      // Right reserved distance = parent right - arrow right
+      const rightReserved = Math.round(parentBox.x + parentBox.width - (arrowBox.x + arrowBox.width));
+      // Left reserved distance = 12px
+      // Must be equal to 12px (tolerance +/- 1px for subpixel rendering)
+      expect(Math.abs(rightReserved - 12)).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
