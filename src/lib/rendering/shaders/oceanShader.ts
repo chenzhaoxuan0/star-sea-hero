@@ -80,49 +80,56 @@ export const OceanShader = {
       return normalize(vec3(-dx, 1.0, -dz));
     }
 
-    // --- Rippled Mode: Gerstner (Trochoidal) Wave Octave ---
-    void addGerstnerWave(
+    // --- Rippled Mode: Precomputed Gerstner (Trochoidal) Wave Constants ---
+    // Mathematically precomputes wavenumber k = 2pi / lambda, deep-water angular frequency
+    // w = sqrt(g * k), normalized propagation direction, and steepness coefficients.
+    // Completely eliminates runtime sqrt() and division instructions across millions of fragments.
+    void addPrecomputedGerstner(
       vec2 p,
       float t,
       vec2 dir,
-      float wavelength,
-      float amplitude,
-      float steepness,
+      float k,
+      float w_t,
+      float kA,
+      float s_kA,
       inout float dx,
       inout float dz,
       inout float dy
     ) {
-      float k = 6.28318530718 / wavelength; // Wavenumber
-      float w = sqrt(9.81 * k);             // Deep-water dispersion: omega = sqrt(g * k)
-      float phase = dot(dir, p) * k - w * t;
+      float phase = dot(dir, p) * k - w_t * t;
       float sinP = sin(phase);
       float cosP = cos(phase);
 
-      float kA = k * amplitude;
       dx -= dir.x * kA * cosP;
       dz -= dir.y * kA * cosP;
-      dy -= steepness * kA * sinP;
+      dy -= s_kA * sinP;
     }
 
-    // --- Multi-Octave Cascading Gerstner Wave Normal ---
+    // --- Multi-Octave Cascading Gerstner Wave Normal (Zero-Loss High Performance) ---
     vec3 calculateGerstnerNormal(vec2 p, float t, float lodFade) {
       float dx = 0.0;
       float dz = 0.0;
       float dy = 1.0;
 
       // Primary ocean swells (long wavelengths, majestic slow rhythm)
-      addGerstnerWave(p, t * 0.72, normalize(vec2(0.32, 0.95)),  68.0, 0.085, 0.75, dx, dz, dy);
-      addGerstnerWave(p, t * 0.85, normalize(vec2(-0.55, 0.83)), 42.0, 0.052, 0.70, dx, dz, dy);
+      // W1: lambda=68m, amp=0.085m, Q=0.75, speed=0.72x
+      addPrecomputedGerstner(p, t, vec2(0.31908, 0.94773), 0.092400, 0.685492, 0.007854, 0.005890, dx, dz, dy);
+      // W2: lambda=42m, amp=0.052m, Q=0.70, speed=0.85x
+      addPrecomputedGerstner(p, t, vec2(-0.55243, 0.83356), 0.149600, 1.029719, 0.007779, 0.005445, dx, dz, dy);
 
       // Mid-frequency crossing wind waves (creates diamond interference pattern)
-      addGerstnerWave(p, t * 1.10, normalize(vec2(0.82, 0.57)),  22.0, 0.031, 0.65, dx, dz, dy);
-      addGerstnerWave(p, t * 1.35, normalize(vec2(-0.25, 0.97)), 12.0, 0.018, 0.60, dx, dz, dy);
+      // W3: lambda=22m, amp=0.031m, Q=0.65, speed=1.10x
+      addPrecomputedGerstner(p, t, vec2(0.82115, 0.57071), 0.285599, 1.841220, 0.008854, 0.005755, dx, dz, dy);
+      // W4: lambda=12m, amp=0.018m, Q=0.60, speed=1.35x
+      addPrecomputedGerstner(p, t, vec2(-0.24945, 0.96839), 0.523599, 3.059621, 0.009425, 0.005655, dx, dz, dy);
 
       // Higher-frequency surface chop (attenuated smoothly by LOD at distance)
       if (lodFade > 0.05) {
         float hfWeight = lodFade;
-        addGerstnerWave(p, t * 1.70, normalize(vec2(0.68, -0.73)), 6.2, 0.009 * hfWeight, 0.55, dx, dz, dy);
-        addGerstnerWave(p, t * 2.10, normalize(vec2(-0.78, 0.62)), 3.1, 0.005 * hfWeight, 0.50, dx, dz, dy);
+        // W5: lambda=6.2m, amp=0.009m, Q=0.55, speed=1.70x
+        addPrecomputedGerstner(p, t, vec2(0.68172, -0.73161), 1.013417, 5.360158, 0.009121 * hfWeight, 0.005016 * hfWeight, dx, dz, dy);
+        // W6: lambda=3.1m, amp=0.005m, Q=0.50, speed=2.10x
+        addPrecomputedGerstner(p, t, vec2(-0.78280, 0.62227), 2.026834, 9.364032, 0.010134 * hfWeight, 0.005067 * hfWeight, dx, dz, dy);
 
         // Capillary surface tension ripples
         float capPhase1 = (p.y * 0.85 + p.x * 0.52) * 4.2 - t * 3.2;
@@ -143,11 +150,20 @@ export const OceanShader = {
       // Distance LOD fade: high-frequency ripples gently relax into smooth water at the horizon
       float lodFade = clamp(1.0 - smoothstep(80.0, 1200.0, dist), 0.0, 1.0);
 
-      // 1. Calculate Wave Normal:
-      // Calm mode uses liquid breathing swell ("镜水微澜"); Rippled mode blends in Gerstner waves.
-      vec3 calmN = calculateCalmBreathingNormal(vWorldPosition.xz, time);
-      vec3 gerstnerN = calculateGerstnerNormal(vWorldPosition.xz, time, lodFade);
-      vec3 activeN = normalize(mix(calmN, gerstnerN, waveMode));
+      // 1. Calculate Wave Normal with Coherent Uniform Branching:
+      // In default rippled mode (waveMode >= 0.99), completely skip calm mode breathing normal.
+      // In calm mode (waveMode <= 0.01), completely skip Gerstner wave generation.
+      // Dynamic uniform branching executes zero unneeded ALU instructions on the GPU.
+      vec3 activeN;
+      if (waveMode >= 0.99) {
+        activeN = calculateGerstnerNormal(vWorldPosition.xz, time, lodFade);
+      } else if (waveMode <= 0.01) {
+        activeN = calculateCalmBreathingNormal(vWorldPosition.xz, time);
+      } else {
+        vec3 calmN = calculateCalmBreathingNormal(vWorldPosition.xz, time);
+        vec3 gerstnerN = calculateGerstnerNormal(vWorldPosition.xz, time, lodFade);
+        activeN = normalize(mix(calmN, gerstnerN, waveMode));
+      }
 
       // 2. Perspective-Foreshortened Planar Reflection Sampling
       // At grazing angles near the horizon, vertical displacement is dampened to avoid edge tearing.

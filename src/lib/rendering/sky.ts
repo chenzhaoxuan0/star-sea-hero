@@ -265,58 +265,21 @@ export function createSky(
 
   const starPoints = new THREE.Points(starGeometry, starMaterial);
 
-  // 3. Constellation Lines (Clipped at Horizon so submerged stars/lines never show through sea)
+  // 3. Constellation Lines (Pre-allocated Zero-Allocation Buffer with setDrawRange)
   const horizonClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const starById = new Map(stars.map((s) => [s.id, s]));
-  const defaultLines: number[] = [];
-  const selectedLinesArray: number[] = [];
 
-  const buildLinePositions = (selectedId: string) => {
-    defaultLines.length = 0;
-    selectedLinesArray.length = 0;
+  // Calculate maximum line segment capacity across all constellations
+  const maxSegments = constellations.reduce((sum, c) => sum + c.segments.length, 0);
+  const maxFloats = Math.max(maxSegments * 2 * 3, 2400); // 2 vertices per segment, 3 floats per vertex
 
-    constellations.forEach((c) => {
-      const isSelected = c.id === selectedId;
-      c.segments.forEach(([fromId, toId]) => {
-        const fromStar = starById.get(fromId);
-        const toStar = starById.get(toId);
-        if (!fromStar || !toStar) return;
-
-        const pFrom = new THREE.Vector3(
-          fromStar.horizon.vector.x,
-          fromStar.horizon.vector.y,
-          fromStar.horizon.vector.z,
-        ).normalize().multiplyScalar(418);
-        const pTo = new THREE.Vector3(
-          toStar.horizon.vector.x,
-          toStar.horizon.vector.y,
-          toStar.horizon.vector.z,
-        ).normalize().multiplyScalar(418);
-
-        // If both stars are below the sea level horizon, omit segment completely
-        if (pFrom.y <= 0.0 && pTo.y <= 0.0) return;
-
-        // If one star has set into the sea, mathematically clip line segment at sea surface
-        if (pFrom.y <= 0.0) {
-          const t = (0.05 - pFrom.y) / (pTo.y - pFrom.y);
-          pFrom.lerp(pTo, t);
-          pFrom.y = 0.05;
-        } else if (pTo.y <= 0.0) {
-          const t = (0.05 - pTo.y) / (pFrom.y - pTo.y);
-          pTo.lerp(pFrom, t);
-          pTo.y = 0.05;
-        }
-
-        const target = isSelected ? selectedLinesArray : defaultLines;
-        target.push(pFrom.x, pFrom.y, pFrom.z, pTo.x, pTo.y, pTo.z);
-      });
-    });
-  };
-
-  buildLinePositions(initialSelectedId);
+  const defaultLinesArray = new Float32Array(maxFloats);
+  const selectedLinesArray = new Float32Array(maxFloats);
 
   const defaultLineGeom = new THREE.BufferGeometry();
-  defaultLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(defaultLines, 3));
+  const defPosAttr = new THREE.BufferAttribute(defaultLinesArray, 3);
+  defPosAttr.setUsage(THREE.DynamicDrawUsage);
+  defaultLineGeom.setAttribute("position", defPosAttr);
   const defaultLineMat = new THREE.LineBasicMaterial({
     color: "#7faac9",
     transparent: true,
@@ -328,7 +291,9 @@ export function createSky(
   const constellationLines = new THREE.LineSegments(defaultLineGeom, defaultLineMat);
 
   const selectedLineGeom = new THREE.BufferGeometry();
-  selectedLineGeom.setAttribute("position", new THREE.Float32BufferAttribute(selectedLinesArray, 3));
+  const selPosAttr = new THREE.BufferAttribute(selectedLinesArray, 3);
+  selPosAttr.setUsage(THREE.DynamicDrawUsage);
+  selectedLineGeom.setAttribute("position", selPosAttr);
   const selectedLineMat = new THREE.LineBasicMaterial({
     color: "#38bdf8",
     transparent: true,
@@ -339,38 +304,80 @@ export function createSky(
   });
   const selectedLines = new THREE.LineSegments(selectedLineGeom, selectedLineMat);
 
+  // Preallocated shared temporary vectors for line segment calculations (Zero GC allocations)
+  const tmpVecFrom = new THREE.Vector3();
+  const tmpVecTo = new THREE.Vector3();
+
+  const buildLinePositions = (selectedId: string) => {
+    let defFloatIdx = 0;
+    let selFloatIdx = 0;
+
+    constellations.forEach((c) => {
+      const isSelected = c.id === selectedId;
+      c.segments.forEach(([fromId, toId]) => {
+        const fromStar = starById.get(fromId);
+        const toStar = starById.get(toId);
+        if (!fromStar || !toStar) return;
+
+        tmpVecFrom.set(
+          fromStar.horizon.vector.x,
+          fromStar.horizon.vector.y,
+          fromStar.horizon.vector.z,
+        ).normalize().multiplyScalar(418);
+
+        tmpVecTo.set(
+          toStar.horizon.vector.x,
+          toStar.horizon.vector.y,
+          toStar.horizon.vector.z,
+        ).normalize().multiplyScalar(418);
+
+        // If both stars are below the sea level horizon, omit segment completely
+        if (tmpVecFrom.y <= 0.0 && tmpVecTo.y <= 0.0) return;
+
+        // If one star has set into the sea, mathematically clip line segment at sea surface
+        if (tmpVecFrom.y <= 0.0) {
+          const t = (0.05 - tmpVecFrom.y) / (tmpVecTo.y - tmpVecFrom.y);
+          tmpVecFrom.lerp(tmpVecTo, t);
+          tmpVecFrom.y = 0.05;
+        } else if (tmpVecTo.y <= 0.0) {
+          const t = (0.05 - tmpVecTo.y) / (tmpVecFrom.y - tmpVecTo.y);
+          tmpVecTo.lerp(tmpVecFrom, t);
+          tmpVecTo.y = 0.05;
+        }
+
+        if (isSelected) {
+          if (selFloatIdx + 6 <= maxFloats) {
+            selectedLinesArray[selFloatIdx++] = tmpVecFrom.x;
+            selectedLinesArray[selFloatIdx++] = tmpVecFrom.y;
+            selectedLinesArray[selFloatIdx++] = tmpVecFrom.z;
+            selectedLinesArray[selFloatIdx++] = tmpVecTo.x;
+            selectedLinesArray[selFloatIdx++] = tmpVecTo.y;
+            selectedLinesArray[selFloatIdx++] = tmpVecTo.z;
+          }
+        } else {
+          if (defFloatIdx + 6 <= maxFloats) {
+            defaultLinesArray[defFloatIdx++] = tmpVecFrom.x;
+            defaultLinesArray[defFloatIdx++] = tmpVecFrom.y;
+            defaultLinesArray[defFloatIdx++] = tmpVecFrom.z;
+            defaultLinesArray[defFloatIdx++] = tmpVecTo.x;
+            defaultLinesArray[defFloatIdx++] = tmpVecTo.y;
+            defaultLinesArray[defFloatIdx++] = tmpVecTo.z;
+          }
+        }
+      });
+    });
+
+    defPosAttr.needsUpdate = true;
+    defaultLineGeom.setDrawRange(0, defFloatIdx / 3);
+
+    selPosAttr.needsUpdate = true;
+    selectedLineGeom.setDrawRange(0, selFloatIdx / 3);
+  };
+
+  buildLinePositions(initialSelectedId);
+
   const updateConstellations = (selectedId: string) => {
     buildLinePositions(selectedId);
-
-    const defAttr = constellationLines.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
-    if (defAttr && defAttr.count * 3 === defaultLines.length) {
-      (defAttr.array as Float32Array).set(defaultLines);
-      defAttr.needsUpdate = true;
-    } else {
-      const oldDefault = constellationLines.geometry;
-      const newDefault = new THREE.BufferGeometry();
-      newDefault.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(defaultLines, 3),
-      );
-      constellationLines.geometry = newDefault;
-      oldDefault.dispose();
-    }
-
-    const selAttr = selectedLines.geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
-    if (selAttr && selAttr.count * 3 === selectedLinesArray.length) {
-      (selAttr.array as Float32Array).set(selectedLinesArray);
-      selAttr.needsUpdate = true;
-    } else {
-      const oldSelected = selectedLines.geometry;
-      const newSelected = new THREE.BufferGeometry();
-      newSelected.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(selectedLinesArray, 3),
-      );
-      selectedLines.geometry = newSelected;
-      oldSelected.dispose();
-    }
 
     // Highlight selected constellation stars
     const sizeAttr = starGeometry.getAttribute("size") as THREE.BufferAttribute | undefined;
@@ -403,7 +410,6 @@ export function createSky(
   };
 
   const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
-    positionMap.clear();
     starById.clear();
     newStars.forEach((star) => starById.set(star.id, star));
 
@@ -425,12 +431,16 @@ export function createSky(
 
     newStars.forEach((star, idx) => {
       if (idx * 3 + 2 >= posArray.length) return;
-      const vec = new THREE.Vector3(
+      let vec = positionMap.get(star.id);
+      if (!vec) {
+        vec = new THREE.Vector3();
+        positionMap.set(star.id, vec);
+      }
+      vec.set(
         star.horizon.vector.x,
         star.horizon.vector.y,
         star.horizon.vector.z,
       ).normalize().multiplyScalar(420);
-      positionMap.set(star.id, vec);
 
       posArray[idx * 3] = vec.x;
       posArray[idx * 3 + 1] = vec.y;

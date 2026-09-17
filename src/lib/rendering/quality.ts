@@ -13,7 +13,7 @@ const SETTINGS: Record<QualityLevel, QualitySettings> = {
     starLimit: 2400,
     oceanSegments: 96,
     reflectionScale: 0.85,
-    maxPixelRatio: 2.0,
+    maxPixelRatio: 1.5,
     targetFps: 60,
   },
   balanced: {

@@ -9,10 +9,17 @@ import {
 } from "@/lib/rendering/quality";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
 import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
+import { toAstronomyObserver } from "@/lib/astronomy/observer";
 import { getOptimalObserverForConstellation } from "@/lib/astronomy/constellationFocus";
 import { CONSTELLATIONS } from "@/data/constellations";
 import type { CloudSettings, Observer } from "@/types/astronomy";
 import type { SceneHandle } from "@/lib/rendering/scene";
+
+// Pre-allocated static vector and matrix pool for 60 FPS zero-allocation rendering
+const poolXVec = new THREE.Vector3();
+const poolYVec = new THREE.Vector3();
+const poolZVec = new THREE.Vector3();
+const poolMwMat = new THREE.Matrix4();
 
 export default function StarSeaCanvas({
   onReady,
@@ -114,11 +121,11 @@ export default function StarSeaCanvas({
       handleRef.current.updateStars(visibleStars, selectedIdRef.current);
     }
     const basis = calculateMilkyWayBasis(observer);
-    const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
-    const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
-    const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
-    const mwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
-    handleRef.current.updateMilkyWay(mwMat);
+    poolXVec.set(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+    poolYVec.set(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+    poolZVec.set(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+    poolMwMat.makeBasis(poolXVec, poolYVec, poolZVec).invert();
+    handleRef.current.updateMilkyWay(poolMwMat);
   }, [observer]);
 
   // Update constellation lines dynamically without tearing down the WebGL scene
@@ -276,10 +283,10 @@ export default function StarSeaCanvas({
         const visibleStars = starsToHorizon(catalog, observerRef.current);
 
         const basis = calculateMilkyWayBasis(observerRef.current);
-        const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
-        const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
-        const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
-        const initialMwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
+        poolXVec.set(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+        poolYVec.set(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+        poolZVec.set(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+        const initialMwMat = poolMwMat.makeBasis(poolXVec, poolYVec, poolZVec).invert().clone();
 
         const handle = createScene(
           canvas,
@@ -368,32 +375,37 @@ export default function StarSeaCanvas({
             previousTime = now;
 
             if (isPlayingRef.current && handleRef.current) {
-              // Real-time sidereal continuous progression at 60 FPS
+              // Real-time sidereal continuous progression at 60 FPS (Zero-Allocation Render Loop)
               // 1x = 1 celestial minute per real second = 60,000 ms per second
               const advanceMs = dt * (playSpeedRef.current || 1) * 60 * 1000;
               simDateMs.current += advanceMs;
 
+              const simDateObj = new Date(simDateMs.current);
+              const dateIso = simDateObj.toISOString();
+
               const currentObs: Observer = {
                 ...observerRef.current,
-                date: new Date(simDateMs.current).toISOString(),
+                date: dateIso,
               };
               observerRef.current = currentObs;
 
+              const astroObs = toAstronomyObserver(currentObs);
+
               if (catalogRef.current.length > 0) {
-                const visibleStars = starsToHorizon(catalogRef.current, currentObs);
+                const visibleStars = starsToHorizon(catalogRef.current, currentObs, simDateObj, astroObs);
                 handle.updateStars(visibleStars, selectedIdRef.current);
               }
-              const basis = calculateMilkyWayBasis(currentObs);
-              const xVec = new THREE.Vector3(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
-              const yVec = new THREE.Vector3(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
-              const zVec = new THREE.Vector3(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
-              const mwMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec).invert();
-              handle.updateMilkyWay(mwMat);
+              const basis = calculateMilkyWayBasis(currentObs, simDateObj, astroObs);
+              poolXVec.set(basis.xAxis.x, basis.xAxis.y, basis.xAxis.z);
+              poolYVec.set(basis.yAxis.x, basis.yAxis.y, basis.yAxis.z);
+              poolZVec.set(basis.zAxis.x, basis.zAxis.y, basis.zAxis.z);
+              poolMwMat.makeBasis(poolXVec, poolYVec, poolZVec).invert();
+              handle.updateMilkyWay(poolMwMat);
 
               // Throttle datetime picker UI update (every 400ms) to avoid React re-render thrashing
               if (now - lastUiSyncTime.current > 400) {
                 lastUiSyncTime.current = now;
-                onObserverDateUpdateRef.current?.(currentObs.date);
+                onObserverDateUpdateRef.current?.(dateIso);
               }
             }
 

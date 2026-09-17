@@ -29,9 +29,19 @@ export function starToHorizon(
   star: Pick<StarRecord, "raHours" | "decDegrees">,
   observer: Observer,
 ): HorizonPosition {
+  const date = new Date(observer.date);
+  const astroObs = toAstronomyObserver(observer);
+  return starToHorizonFast(star, date, astroObs);
+}
+
+export function starToHorizonFast(
+  star: Pick<StarRecord, "raHours" | "decDegrees">,
+  date: Date,
+  astroObs: ReturnType<typeof toAstronomyObserver>,
+): HorizonPosition {
   const horizontal = Horizon(
-    new Date(observer.date),
-    toAstronomyObserver(observer),
+    date,
+    astroObs,
     star.raHours,
     star.decDegrees,
     "normal",
@@ -49,10 +59,18 @@ export function starToHorizon(
 export function starsToHorizon(
   stars: StarRecord[],
   observer: Observer,
+  date: Date = new Date(observer.date),
+  astroObs: ReturnType<typeof toAstronomyObserver> = toAstronomyObserver(observer),
 ): Array<StarRecord & { horizon: HorizonPosition }> {
-  return stars
-    .map((star) => ({ ...star, horizon: starToHorizon(star, observer) }))
-    .filter((star) => star.horizon.visible);
+  const result: Array<StarRecord & { horizon: HorizonPosition }> = [];
+  for (let i = 0; i < stars.length; i++) {
+    const star = stars[i];
+    const horizon = starToHorizonFast(star, date, astroObs);
+    if (horizon.visible) {
+      result.push({ ...star, horizon });
+    }
+  }
+  return result;
 }
 
 /**
@@ -67,14 +85,15 @@ export function starsToHorizon(
  * When transformed into a matrix, its inverse projects any horizontal viewing ray
  * into exact J2000 equatorial coordinates with machine precision (< 1e-15 error).
  */
-export function calculateMilkyWayBasis(observer: Observer): {
+export function calculateMilkyWayBasis(
+  observer: Observer,
+  date: Date = new Date(observer.date),
+  astroObs: ReturnType<typeof toAstronomyObserver> = toAstronomyObserver(observer),
+): {
   xAxis: { x: number; y: number; z: number };
   yAxis: { x: number; y: number; z: number };
   zAxis: { x: number; y: number; z: number };
 } {
-  const date = new Date(observer.date);
-  const astroObs = toAstronomyObserver(observer);
-
   const p0 = Horizon(date, astroObs, 0, 0, undefined);
   const p6 = Horizon(date, astroObs, 6, 0, undefined);
   const pNCP = Horizon(date, astroObs, 0, 90, undefined);
