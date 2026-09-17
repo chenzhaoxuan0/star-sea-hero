@@ -321,7 +321,7 @@ export default function StarSeaControls({
             className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-black/40 px-3 py-1 text-xs font-medium text-cyan/90 transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
           >
             <Maximize2 size={13} aria-hidden="true" className="text-cyan" />
-            <span>沉浸模式 (连点3次)</span>
+            <span>沉浸模式</span>
           </button>
         </div>
       </div>
