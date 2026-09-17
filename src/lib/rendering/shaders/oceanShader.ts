@@ -159,12 +159,12 @@ export const OceanShader = {
       reflectUv.x += activeN.x * (distortScale * reflectUv.w);
       reflectUv.y += activeN.z * (distortScale * reflectUv.w * mix(grazingDamp * 1.4, grazingDamp, waveMode));
 
-      // Clean celestial horizon airglow matching skyShader (zero orange/red)
+      // Clean celestial horizon airglow matching skyShader (refined nocturnal indigo, zero orange/red)
       float forwardGlow = dot(normalize(vec2(viewDir.x, viewDir.z)), vec2(0.0, 1.0));
       float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      vec3 cHorizonBase = vec3(0.088, 0.108, 0.215);
-      vec3 cAirglow = vec3(0.040, 0.070, 0.130);
-      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
+      vec3 cHorizonBase = vec3(0.038, 0.052, 0.125);
+      vec3 cAirglow = vec3(0.025, 0.038, 0.075);
+      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.10 * twilightIntensity);
 
       // Safe projected sampling with border guard
       vec2 projCoords = reflectUv.xy / reflectUv.w;
@@ -219,13 +219,13 @@ export const OceanShader = {
       vec3 finalColor = mix(waterBody, reflectedSky, fresnel);
 
       // 7. Seamless Aerial Perspective Atmosphere Horizon Blending
-      // Smoothly transitions from foreground water body + reflection to horizon atmosphere
-      float hazeByDist = 1.0 - exp(-dist * 0.0022);
-      float hazeByElevation = 1.0 - smoothstep(0.0003, 0.048, viewElevation);
+      // Smoothly transitions extreme distant water boundary into horizon atmosphere while preserving crisp star reflections
+      float hazeByDist = 1.0 - exp(-dist * 0.0010);
+      float hazeByElevation = 1.0 - smoothstep(0.0001, 0.024, viewElevation);
       float totalHorizonBlend = clamp(max(hazeByDist, hazeByElevation), 0.0, 1.0);
-      totalHorizonBlend = pow(totalHorizonBlend, 0.85);
+      totalHorizonBlend = pow(totalHorizonBlend, 2.0);
 
-      finalColor = mix(finalColor, horizonAtmosphere, totalHorizonBlend);
+      finalColor = mix(finalColor, horizonAtmosphere, totalHorizonBlend * 0.70);
 
       gl_FragColor = vec4(finalColor, 1.0);
     }

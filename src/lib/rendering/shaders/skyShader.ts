@@ -124,29 +124,21 @@ export const SkyShader = {
       vec3 ray = normalize(vRayDirection);
       float elevation = ray.y; // -1 to 1
 
-      // 1. Atmosphere base gradient (zenith down to horizon)
-      vec3 cZenith       = vec3(0.010, 0.015, 0.038); // Deep cosmic void
-      vec3 cHighSky      = vec3(0.022, 0.036, 0.095); // Deep midnight navy
-      vec3 cMidSky       = vec3(0.045, 0.062, 0.155); // Rich nocturnal indigo
-      vec3 cLowSky       = vec3(0.068, 0.082, 0.190); // Soft celestial blue-indigo
-      vec3 cHorizonBase  = vec3(0.088, 0.108, 0.215); // Clean starlit atmospheric airglow (pure night sky, no red/orange)
+      // 1. Atmosphere celestial dome (zenith down to horizon)
+      vec3 cZenith       = vec3(0.007, 0.010, 0.026); // Deep cosmic void
+      vec3 cHighSky      = vec3(0.015, 0.024, 0.065); // Deep midnight navy
+      vec3 cMidSky       = vec3(0.026, 0.038, 0.098); // Rich nocturnal indigo
+      vec3 cLowSky       = vec3(0.036, 0.048, 0.120); // Soft celestial blue-indigo
 
       float h = max(0.0, elevation);
       vec3 skyColor = cZenith;
-      skyColor = mix(skyColor, cHighSky,      1.0 - smoothstep(0.48, 0.85, h));
-      skyColor = mix(skyColor, cMidSky,       1.0 - smoothstep(0.26, 0.58, h));
-      skyColor = mix(skyColor, cLowSky,       1.0 - smoothstep(0.08, 0.32, h));
-      skyColor = mix(skyColor, cHorizonBase,  1.0 - smoothstep(0.00, 0.14, h));
+      skyColor = mix(skyColor, cHighSky, 1.0 - smoothstep(0.48, 0.85, h));
+      skyColor = mix(skyColor, cMidSky,  1.0 - smoothstep(0.24, 0.58, h));
+      skyColor = mix(skyColor, cLowSky,  1.0 - smoothstep(0.03, 0.30, h));
 
-      // 2. Horizon Celestial Airglow - Pure ethereal starlit luminescence (zero orange/red)
-      float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
-      float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
-      float twilightElev = exp(-pow(h * 28.0, 1.25));
-      vec3 cAirglow = vec3(0.040, 0.070, 0.130);
-      skyColor += cAirglow * (twilightElev * (0.40 + 0.60 * azimuthFactor) * 0.14 * twilightIntensity);
-
-      // 3. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
-      if (elevation > 0.005) {
+      // 2. Astrophotography-Grade Authentic Milky Way Galaxy (Stellarium All-Sky Panorama)
+      // Flows seamlessly all the way down to sea level, unblocked by horizon haze
+      if (elevation > -0.002) {
         vec3 vEq = (milkyWayMatrix * vec4(ray, 0.0)).xyz;
         float mwZenith = acos(clamp(vEq.z, -1.0, 1.0));
         float v = mwZenith / 3.141592653589793;
@@ -155,8 +147,8 @@ export const SkyShader = {
 
         vec4 mwTex = texture2D(uMilkyWayMap, vec2(u, v));
 
-        // Atmospheric extinction towards horizon: dimmer near horizon, fully visible above elevation 0.07
-        float mwExtinction = smoothstep(0.006, 0.075, elevation);
+        // Gentle edge falloff right at the 0.0 water line to ensure clean horizon contact
+        float mwExtinction = smoothstep(-0.001, 0.010, elevation);
 
         // Astrophotography color grading:
         // Film-like tonal compression: preserves intricate stardust filaments and dark rifts without blown-out clipping
@@ -166,6 +158,19 @@ export const SkyShader = {
 
         skyColor += mwGraded * (mwExtinction * uMilkyWayIntensity);
       }
+
+      // 3. Horizon Atmosphere Gradient with Smooth Opacity Falloff (100% at sea level -> 0% upward into sky)
+      // Sea level is solid 100% opacity, but gracefully fades to 0% upward across gradient height so stars and Milky Way behind remain visible
+      float forwardGlow = dot(normalize(vec2(ray.x, ray.z)), normalize(vec2(sunDirection.x, sunDirection.z)));
+      float azimuthFactor = pow(clamp(forwardGlow * 0.5 + 0.5, 0.0, 1.0), 1.6);
+      vec3 cHorizonBase = vec3(0.038, 0.052, 0.125); // Refined midnight celestial indigo
+      vec3 cAirglow = vec3(0.025, 0.038, 0.075);
+      vec3 horizonAtmosphere = cHorizonBase + cAirglow * ((0.40 + 0.60 * azimuthFactor) * 0.10 * twilightIntensity);
+
+      // Opacity gradient: 100% right at sea level (h = 0.0), rapidly and gracefully fading to 0% by h = 0.08
+      float horizonAlpha = 1.0 - smoothstep(0.00, 0.08, h);
+      horizonAlpha = pow(horizonAlpha, 2.0); // Soft non-linear opacity curve
+      skyColor = mix(skyColor, horizonAtmosphere, horizonAlpha);
 
       // 4. Natural Nocturnal Atmospheric Clouds / Mist (Adjustable)
       if (uCloudDensity > 0.01 && elevation > 0.02) {

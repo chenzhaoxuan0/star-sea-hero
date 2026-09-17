@@ -138,12 +138,12 @@ export function createSky(
         .addScaledVector(galNGP, sinB);
 
       vec.copy(vJ2000).applyMatrix4(invMilkyWay).normalize();
-      if (vec.y < 0.02) vec.y = Math.abs(vec.y) + 0.05; // keep in upper sky
+      if (vec.y < 0.005) vec.y = Math.abs(vec.y) + 0.005; // natural celestial dome down to sea level
       vec.normalize().multiplyScalar(418 + (Math.random() - 0.5) * 12);
     } else {
-      // Uniform upper celestial dome
+      // Uniform celestial dome
       const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(Math.random() * 0.94 + 0.03);
+      const phi = Math.acos(Math.random() * 0.98 + 0.005);
       const r = 415 + (Math.random() - 0.5) * 15;
       vec.set(
         r * Math.sin(phi) * Math.cos(theta),
