@@ -27,7 +27,7 @@ npx tsc --noEmit
 ## 当前进度
 
 - 已完成独立 Next.js 静态导出骨架。
-- 已完成 52 KB 首屏 poster、WebGL 失败 fallback 和减少动态 fallback。
+- 已完成 WebGL 直出启动架构（已完全移除静态 WebP 封面及 WebM 视频），具备 WebGL 异常降级 fallback。
 - 已完成延迟加载 Three.js 场景、质量档位、页面隐藏时暂停渲染和拖拽旋转。
 - 已接入亮星坐标、观测地点/时间转换、星宿线段和动态海面 shader。
 - 尚未完成：低分辨率镜像相机倒影、可视化星宿选择面板、浏览器定位、完整星表脚本、Playwright E2E 和跨设备截图验收。

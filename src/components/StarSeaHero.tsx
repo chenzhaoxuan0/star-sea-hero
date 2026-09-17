@@ -19,7 +19,7 @@ import StarSeaLoading, { type StarSeaLoadingState } from "./StarSeaLoading";
 
 export default function StarSeaHero() {
   const [loadingState, setLoadingState] =
-    useState<StarSeaLoadingState>("poster");
+    useState<StarSeaLoadingState>("interactive");
   const [fallback, setFallback] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [observer, setObserver] = useState<Observer>(DEFAULT_OBSERVER);
@@ -54,7 +54,7 @@ export default function StarSeaHero() {
   }, []);
 
   const handleError = useCallback((error: unknown) => {
-    console.warn("Star Sea switched to the poster:", error);
+    console.warn("Star Sea switched to fallback:", error);
     setFallback(true);
     setLoadingState("interactive");
   }, []);

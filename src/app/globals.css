@@ -70,7 +70,6 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   overflow: hidden;
 }
 
-.star-sea-poster,
 .star-sea-canvas,
 .star-sea-vignette {
   position: absolute;
@@ -79,24 +78,11 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   height: 100%;
 }
 
-.star-sea-poster {
-  z-index: 0;
-  object-fit: cover;
-  object-position: center;
-  opacity: 1;
-  transition: opacity 800ms ease;
-}
-
-.star-sea-poster.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .star-sea-canvas {
   z-index: 1;
   display: block;
   opacity: 0;
-  transition: opacity 1000ms ease;
+  transition: opacity 300ms ease;
   touch-action: none;
 }
 
