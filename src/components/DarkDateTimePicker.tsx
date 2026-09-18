@@ -141,13 +141,13 @@ export default function DarkDateTimePicker({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="点开观测时间日历选择器"
         title="点开暗色星空日历与时间调节面板"
-        className={`flex min-h-10 w-[148px] sm:w-[154px] shrink-0 items-center justify-between rounded-xl border px-3 text-xs text-white outline-none transition-all cursor-pointer ${
+        className={`flex h-[30px] sm:min-h-10 w-[130px] sm:w-[154px] shrink-0 items-center justify-between rounded-lg sm:rounded-xl border px-2 sm:px-3 text-[10.5px] sm:text-xs text-white outline-none transition-all cursor-pointer ${
           isOpen
             ? "border-cyan bg-cyan/15 text-white shadow-lg shadow-cyan/20"
             : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:bg-black/50"
         }`}
       >
-        <span className="font-mono text-[11px] tracking-tight">{displayString}</span>
+        <span className="font-mono text-[10.5px] sm:text-[11px] tracking-tight">{displayString}</span>
         <CalendarIcon
           size={13}
           className={`shrink-0 transition-colors ${isOpen ? "text-cyan" : "text-white/60"}`}
@@ -156,7 +156,7 @@ export default function DarkDateTimePicker({
 
       {/* Dark Themed Celestial Popover Panel */}
       {isOpen && (
-        <div className="absolute bottom-full right-0 z-50 mb-2.5 w-[332px] rounded-2xl border border-white/20 bg-[#080d18]/95 p-3 text-xs text-white shadow-2xl backdrop-blur-2xl">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0 z-50 mb-2 w-[min(92vw,332px)] rounded-2xl border border-white/20 bg-[#080d18]/95 p-3 text-xs text-white shadow-2xl backdrop-blur-2xl">
           {/* Header */}
           <div className="mb-2.5 flex items-center justify-between border-b border-white/10 pb-2">
             <div className="flex items-center gap-1.5 font-medium text-white/90">

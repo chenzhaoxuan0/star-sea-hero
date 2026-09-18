@@ -250,11 +250,12 @@ export function createSky(
         float core = exp(-d * d * 16.0);
         float intensity = core * circle * 1.6;
 
-        // 4-point cross diffraction spikes for bright hero stars
+        // 4-point cross diffraction spikes and radiant halo for bright hero stars
         if (vIsBright > 0.5) {
-          float spikeH = max(0.0, 1.0 - abs(p.y) * 18.0) * max(0.0, 1.0 - abs(p.x) * 2.2);
-          float spikeV = max(0.0, 1.0 - abs(p.x) * 18.0) * max(0.0, 1.0 - abs(p.y) * 2.2);
-          intensity += (spikeH + spikeV) * 0.5;
+          float spikeH = max(0.0, 1.0 - abs(p.y) * 16.0) * max(0.0, 1.0 - abs(p.x) * 2.0);
+          float spikeV = max(0.0, 1.0 - abs(p.x) * 16.0) * max(0.0, 1.0 - abs(p.y) * 2.0);
+          float halo = exp(-d * 3.5) * 0.5;
+          intensity += (spikeH + spikeV) * 0.8 + halo;
         }
 
         vec3 rgb = vColor * intensity * vAlpha;
@@ -266,7 +267,6 @@ export function createSky(
   const starPoints = new THREE.Points(starGeometry, starMaterial);
 
   // 3. Constellation Lines (Pre-allocated Zero-Allocation Buffer with setDrawRange)
-  const horizonClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const starById = new Map(stars.map((s) => [s.id, s]));
 
   // Calculate maximum line segment capacity across all constellations
@@ -284,25 +284,33 @@ export function createSky(
     color: "#7faac9",
     transparent: true,
     opacity: 0.28,
-    clippingPlanes: [horizonClipPlane],
     depthWrite: false,
     depthTest: false,
   });
   const constellationLines = new THREE.LineSegments(defaultLineGeom, defaultLineMat);
+  constellationLines.frustumCulled = false;
 
   const selectedLineGeom = new THREE.BufferGeometry();
   const selPosAttr = new THREE.BufferAttribute(selectedLinesArray, 3);
   selPosAttr.setUsage(THREE.DynamicDrawUsage);
   selectedLineGeom.setAttribute("position", selPosAttr);
   const selectedLineMat = new THREE.LineBasicMaterial({
-    color: "#38bdf8",
+    color: "#00f0ff",
     transparent: true,
-    opacity: 0.95,
-    clippingPlanes: [horizonClipPlane],
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending,
     depthWrite: false,
     depthTest: false,
   });
   const selectedLines = new THREE.LineSegments(selectedLineGeom, selectedLineMat);
+  selectedLines.frustumCulled = false;
+  selectedLines.renderOrder = 100;
+  starPoints.renderOrder = 90;
+  starPoints.frustumCulled = false;
+  constellationLines.renderOrder = 80;
+
+  let currentStars = stars;
+  let prevCatalogCount = stars.length;
 
   // Preallocated shared temporary vectors for line segment calculations (Zero GC allocations)
   const tmpVecFrom = new THREE.Vector3();
@@ -382,9 +390,11 @@ export function createSky(
     // Highlight selected constellation stars
     const sizeAttr = starGeometry.getAttribute("size") as THREE.BufferAttribute | undefined;
     const isBrightAttr = starGeometry.getAttribute("isBright") as THREE.BufferAttribute | undefined;
-    if (sizeAttr && isBrightAttr) {
+    const colorAttr = starGeometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+    if (sizeAttr && isBrightAttr && colorAttr) {
       const sizeArr = sizeAttr.array as Float32Array;
       const brightArr = isBrightAttr.array as Float32Array;
+      const colorArr = colorAttr.array as Float32Array;
       const selStars = new Set<string>();
       if (selectedId) {
         const con = constellations.find((c) => c.id === selectedId);
@@ -393,23 +403,33 @@ export function createSky(
           selStars.add(b);
         });
       }
-      stars.forEach((star, idx) => {
+      currentStars.forEach((star, idx) => {
         if (idx >= sizeArr.length) return;
         const baseSize = Math.max(2.2, 5.2 - star.magnitude * 0.6);
         if (selStars.has(star.id)) {
-          sizeArr[idx] = Math.max(baseSize * 1.5, 6.0);
+          // Radiant electric cyan highlight pointing out the selected constellation
+          colorArr[idx * 3] = 0.05;
+          colorArr[idx * 3 + 1] = 0.95;
+          colorArr[idx * 3 + 2] = 1.0;
+          sizeArr[idx] = Math.max(baseSize * 3.0, 12.0);
           brightArr[idx] = 1.0;
         } else {
+          colorHelper.set(star.color);
+          colorArr[idx * 3] = colorHelper.r;
+          colorArr[idx * 3 + 1] = colorHelper.g;
+          colorArr[idx * 3 + 2] = colorHelper.b;
           sizeArr[idx] = baseSize;
           brightArr[idx] = star.magnitude < 2.2 ? 1.0 : 0.0;
         }
       });
+      colorAttr.needsUpdate = true;
       sizeAttr.needsUpdate = true;
       isBrightAttr.needsUpdate = true;
     }
   };
 
   const updateStars = (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => {
+    currentStars = newStars;
     starById.clear();
     newStars.forEach((star) => starById.set(star.id, star));
 
@@ -419,6 +439,8 @@ export function createSky(
     const sizeArray = sizeAttr.array as Float32Array;
     const isBrightAttr = starGeometry.getAttribute("isBright") as THREE.BufferAttribute;
     const isBrightArray = isBrightAttr.array as Float32Array;
+    const colorAttr = starGeometry.getAttribute("color") as THREE.BufferAttribute;
+    const colorArray = colorAttr.array as Float32Array;
 
     const selectedStarIds = new Set<string>();
     if (selectedId) {
@@ -448,17 +470,34 @@ export function createSky(
 
       const baseSize = Math.max(2.2, 5.2 - star.magnitude * 0.6);
       if (selectedStarIds.has(star.id)) {
-        sizeArray[idx] = Math.max(baseSize * 1.5, 6.0);
+        colorArray[idx * 3] = 0.05;
+        colorArray[idx * 3 + 1] = 0.95;
+        colorArray[idx * 3 + 2] = 1.0;
+        sizeArray[idx] = Math.max(baseSize * 3.0, 12.0);
         isBrightArray[idx] = 1.0;
       } else {
+        colorHelper.set(star.color);
+        colorArray[idx * 3] = colorHelper.r;
+        colorArray[idx * 3 + 1] = colorHelper.g;
+        colorArray[idx * 3 + 2] = colorHelper.b;
         sizeArray[idx] = baseSize;
         isBrightArray[idx] = star.magnitude < 2.2 ? 1.0 : 0.0;
       }
     });
 
+    // Submerge any stars that were rendered previously but have now dipped below horizon
+    for (let i = newStars.length; i < prevCatalogCount; i++) {
+      if (i * 3 + 2 < posArray.length) {
+        posArray[i * 3 + 1] = -999.0;
+        sizeArray[i] = 0.0;
+      }
+    }
+    prevCatalogCount = newStars.length;
+
     posAttr.needsUpdate = true;
     sizeAttr.needsUpdate = true;
     isBrightAttr.needsUpdate = true;
+    colorAttr.needsUpdate = true;
     updateConstellations(selectedId);
   };
 

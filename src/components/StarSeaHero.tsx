@@ -48,6 +48,7 @@ export default function StarSeaHero() {
   // Fully immersive mode (hides all UI: corners, center title, bottom controls bar)
   const [isImmersive, setIsImmersive] = useState(false);
   const [immersiveNotice, setImmersiveNotice] = useState<string | null>(null);
+  const [focusNonce, setFocusNonce] = useState(0);
 
   const handleReady = useCallback(() => {
     setLoadingState("interactive");
@@ -62,6 +63,7 @@ export default function StarSeaHero() {
   // When user selects a constellation, automatically jump to its optimal observation season and latitude
   const handleSelectConstellation = (constellationId: string) => {
     setSelectedId(constellationId);
+    setFocusNonce((prev) => prev + 1);
     if (!constellationId) return;
 
     const optimal = getOptimalObserverForConstellation(constellationId, observer, selectedTimezone);
@@ -119,63 +121,31 @@ export default function StarSeaHero() {
   // Handle entering immersive mode: show brief guidance notice
   const handleEnterImmersive = useCallback(() => {
     setIsImmersive(true);
-    setImmersiveNotice("已进入纯净沉浸模式 · 连续点击画面 3 次重现界面");
+    setImmersiveNotice("已进入纯净沉浸模式 · 点击天幕或连续点击画面 3 次重现界面");
   }, []);
 
-  // Triple-click / tap detector on screen to exit immersive mode
-  useEffect(() => {
-    if (!isImmersive) {
-      setImmersiveNotice(null);
-      return;
-    }
+  const handleExitImmersive = useCallback(() => {
+    setIsImmersive(false);
+    setImmersiveNotice(null);
+  }, []);
 
-    // Auto-dismiss the entry guidance after 3.2 seconds
+  // Tap anywhere on non-UI celestial sky toggles immersive mode
+  const handleCanvasClick = useCallback(() => {
+    if (isImmersive) {
+      handleExitImmersive();
+    } else {
+      handleEnterImmersive();
+    }
+  }, [isImmersive, handleEnterImmersive, handleExitImmersive]);
+
+  // Auto-dismiss the guidance notice after 2.8 seconds
+  useEffect(() => {
+    if (!isImmersive || !immersiveNotice) return;
     const timer = setTimeout(() => {
       setImmersiveNotice(null);
-    }, 3200);
-
-    let pointerDownInfo: { x: number; y: number; time: number } | null = null;
-    let clickHistory: number[] = [];
-
-    const handlePointerDown = (e: PointerEvent) => {
-      pointerDownInfo = { x: e.clientX, y: e.clientY, time: Date.now() };
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (!pointerDownInfo) return;
-      const dx = e.clientX - pointerDownInfo.x;
-      const dy = e.clientY - pointerDownInfo.y;
-      const dt = Date.now() - pointerDownInfo.time;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      // Only count as an intentional click/tap if mouse/finger didn't drag the 3D sky (dist < 15px, dt < 500ms)
-      if (dist < 15 && dt < 500) {
-        const now = Date.now();
-        // Keep clicks occurring within the last 1200ms
-        clickHistory = clickHistory.filter((t) => now - t < 1200);
-        clickHistory.push(now);
-
-        if (clickHistory.length >= 3) {
-          clickHistory = [];
-          setIsImmersive(false);
-          setImmersiveNotice(null);
-        } else {
-          const count = clickHistory.length;
-          setImmersiveNotice(`已连击 ${count}/3 次 · 再点击 ${3 - count} 次重现界面`);
-        }
-      }
-      pointerDownInfo = null;
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown, { capture: true });
-    window.addEventListener("pointerup", handlePointerUp, { capture: true });
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("pointerdown", handlePointerDown, { capture: true });
-      window.removeEventListener("pointerup", handlePointerUp, { capture: true });
-    };
-  }, [isImmersive]);
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [isImmersive, immersiveNotice]);
 
   // Fallback timer only when WebGL 3D canvas is inactive
   useEffect(() => {
@@ -204,12 +174,14 @@ export default function StarSeaHero() {
         <StarSeaCanvas
           observer={observer}
           selectedId={selectedId}
+          targetNonce={focusNonce}
           selectedTimezone={selectedTimezone}
           waveMode={waveMode}
           cloudSettings={cloudSettings}
           isPlaying={isPlaying}
           playSpeed={playSpeed}
           onObserverDateUpdate={handleObserverDateUpdate}
+          onCanvasClick={handleCanvasClick}
           onReady={handleReady}
           onError={handleError}
         />
@@ -260,12 +232,12 @@ export default function StarSeaHero() {
 
       {!fallback && (
         <div
-          className={`pointer-events-none absolute inset-0 z-10 flex flex-col justify-between px-6 py-8 sm:px-10 sm:py-10 transition-opacity duration-500 ${
+          className={`pointer-events-none absolute inset-0 z-10 flex flex-col justify-between px-4 py-6 sm:px-10 sm:py-10 transition-opacity duration-500 ${
             isImmersive ? "opacity-0" : "opacity-100"
           }`}
         >
           {/* Top Corner Labels */}
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.28em] text-white/60">
+          <div className="flex items-center justify-between text-[9px] sm:text-[10px] uppercase tracking-[0.24em] sm:tracking-[0.28em] text-white/60">
             <span>Star Sea / WebGL 3D</span>
             <span>Celestial Horizon</span>
           </div>
@@ -273,21 +245,21 @@ export default function StarSeaHero() {
           {/* Center Title Block */}
           <div
             className={`mx-auto flex max-w-3xl flex-col items-center text-center transition-all duration-500 ${
-              showCenterTitle
-                ? "opacity-100 translate-y-0"
-                : "pointer-events-none opacity-0 -translate-y-2 scale-95"
+              showCenterTitle && !selectedId
+                ? "opacity-100 translate-y-0 visible"
+                : "pointer-events-none opacity-0 -translate-y-2 scale-95 invisible"
             }`}
           >
-            <p className="mb-4 text-[10px] uppercase tracking-[0.34em] text-white/65">
+            <p className="mb-1 text-[9px] uppercase tracking-[0.24em] text-white/60 sm:mb-3 sm:text-[10px] sm:tracking-[0.34em] sm:text-white/65">
               Celestial Atlas & Ocean Mirror
             </p>
             <h1
               id="star-sea-title"
-              className="font-display text-6xl italic leading-none text-white sm:text-8xl"
+              className="font-display text-3xl italic leading-tight text-white sm:text-7xl md:text-8xl"
             >
               星辰大海
             </h1>
-            <p className="mt-4 max-w-xl text-xs sm:text-sm leading-6 text-white/70">
+            <p className="mt-1 sm:mt-3 max-w-xl text-xs sm:text-sm leading-5 sm:leading-6 text-white/70">
               仰望浩瀚星穹，俯瞰平静如镜的海面倒影。
             </p>
           </div>

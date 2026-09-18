@@ -26,23 +26,27 @@ export default function StarSeaCanvas({
   onError,
   observer,
   selectedId,
+  targetNonce,
   selectedTimezone = "UTC+8",
   waveMode = "rippled",
   cloudSettings,
   isPlaying = true,
   playSpeed = 1,
   onObserverDateUpdate,
+  onCanvasClick,
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
   observer: Observer;
   selectedId: string;
+  targetNonce?: number;
   selectedTimezone?: string;
   waveMode?: "calm" | "rippled";
   cloudSettings?: CloudSettings;
   isPlaying?: boolean;
   playSpeed?: number;
   onObserverDateUpdate?: (dateIso: string) => void;
+  onCanvasClick?: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -51,6 +55,8 @@ export default function StarSeaCanvas({
   const view = useRef({ yaw: 0, pitch: 0.28 });
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
+  const onCanvasClickRef = useRef(onCanvasClick);
+  onCanvasClickRef.current = onCanvasClick;
   const waveModeRef = useRef(waveMode);
   waveModeRef.current = waveMode;
   const catalogRef = useRef<ReturnType<typeof createFaintStarField>>([]);
@@ -173,18 +179,20 @@ export default function StarSeaCanvas({
         let cx = 0;
         let cy = 0;
         let cz = 0;
-        let count = 0;
+        let totalWeight = 0;
         starIds.forEach((id) => {
           const s = BRIGHT_STARS.find((star) => star.id === id);
           if (s) {
             const h = starToHorizon(s, targetObs);
-            cx += h.vector.x;
-            cy += h.vector.y;
-            cz += h.vector.z;
-            count++;
+            // Weight stars by astronomical flux so iconic bright asterisms (like the Big Dipper in Ursa Major) dominate the center
+            const w = Math.pow(10, -0.4 * s.magnitude);
+            cx += h.vector.x * w;
+            cy += h.vector.y * w;
+            cz += h.vector.z * w;
+            totalWeight += w;
           }
         });
-        if (count > 0) {
+        if (totalWeight > 0) {
           const len = Math.hypot(cx, cy, cz) || 1;
           const nx = cx / len;
           const ny = cy / len;
@@ -239,7 +247,7 @@ export default function StarSeaCanvas({
 
     animId = requestAnimationFrame(animateFlyTo);
     return () => cancelAnimationFrame(animId);
-  }, [selectedId]);
+  }, [selectedId, targetNonce]);
 
   useEffect(() => {
     let disposed = false;
@@ -256,7 +264,7 @@ export default function StarSeaCanvas({
     const timeout = window.setTimeout(() => {
       timedOut = true;
       fail(new Error("Star Sea WebGL initialization timed out."));
-    }, 7000);
+    }, 15000);
 
     const start = async () => {
       try {
@@ -313,11 +321,19 @@ export default function StarSeaCanvas({
         let dragging = false;
         let lastX = 0;
         let lastY = 0;
+        let downX = 0;
+        let downY = 0;
+        let downTime = 0;
+        let wasDrag = false;
 
         const onPointerDown = (event: PointerEvent) => {
           dragging = true;
           lastX = event.clientX;
           lastY = event.clientY;
+          downX = event.clientX;
+          downY = event.clientY;
+          downTime = performance.now();
+          wasDrag = false;
           canvas.setPointerCapture(event.pointerId);
         };
 
@@ -325,6 +341,9 @@ export default function StarSeaCanvas({
           if (!dragging) return;
           const deltaX = event.clientX - lastX;
           const deltaY = event.clientY - lastY;
+          if (Math.hypot(event.clientX - downX, event.clientY - downY) > 8) {
+            wasDrag = true;
+          }
           view.current.yaw -= deltaX * 0.0028;
           view.current.pitch = Math.max(
             -0.08,
@@ -338,6 +357,11 @@ export default function StarSeaCanvas({
           dragging = false;
           if (canvas.hasPointerCapture(event.pointerId)) {
             canvas.releasePointerCapture(event.pointerId);
+          }
+          const elapsed = performance.now() - downTime;
+          // If the pointer didn't drag (<8px) and was released within 350ms, it's an intentional tap/click
+          if (!wasDrag && elapsed < 350) {
+            onCanvasClickRef.current?.();
           }
         };
 

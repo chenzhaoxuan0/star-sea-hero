@@ -90,36 +90,36 @@ export default function StarSeaControls({
 
   return (
     <div
-      className={`star-sea-panel absolute bottom-12 left-1/2 z-20 w-[min(95vw,940px)] -translate-x-1/2 rounded-2xl p-3 text-left text-white/85 shadow-2xl shadow-black/40 backdrop-blur-md transition-all duration-500 sm:bottom-10 sm:p-4 ${
+      className={`star-sea-panel absolute bottom-2 sm:bottom-10 left-1/2 z-20 w-[min(96vw,940px)] -translate-x-1/2 rounded-xl sm:rounded-2xl p-2 sm:p-4 text-left text-white/85 shadow-2xl shadow-black/40 backdrop-blur-md transition-all duration-500 ${
         isImmersive
           ? "pointer-events-none opacity-0 translate-y-6 scale-95"
           : "pointer-events-auto opacity-100 translate-y-0 scale-100"
       }`}
     >
       {/* Top Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-white/55">
-          <span className="flex items-center gap-1.5">
-            <Rotate3d size={13} aria-hidden="true" />
-            <span>全天视角</span>
+      <div className="flex items-center justify-between gap-1 sm:gap-2 border-b border-white/10 pb-1 sm:pb-2.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.16em] text-white/55 shrink-0">
+          <span className="hidden xs:flex items-center gap-1">
+            <Rotate3d size={12} aria-hidden="true" />
+            <span className="hidden sm:inline">全天视角</span>
           </span>
-          <span className="text-white/25">·</span>
+          <span className="hidden sm:inline text-white/25">·</span>
           <span className="flex items-center gap-1 text-white/60">
-            <Globe2 size={12} aria-hidden="true" />
+            <Globe2 size={11} aria-hidden="true" />
             <span>{observer.label}</span>
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {/* Reset Full Sky View Button (placed to the left of Clouds & Sea) */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Reset Full Sky View Button */}
           {selectedId && (
             <button
               type="button"
               onClick={() => onSelect("")}
               title="重置全天视角（退出当前星宿特写）"
-              className="inline-flex items-center gap-1.5 rounded-full border border-cyan/40 bg-black/40 px-3 py-1 text-xs font-medium text-cyan transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
+              className="inline-flex items-center gap-1 rounded-full border border-cyan/40 bg-black/40 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium text-cyan transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
             >
-              <RotateCcw size={13} aria-hidden="true" />
+              <RotateCcw size={11} aria-hidden="true" />
               <span>重置全天视角</span>
             </button>
           )}
@@ -130,15 +130,15 @@ export default function StarSeaControls({
               type="button"
               onClick={() => setShowCloudPopover((prev) => !prev)}
               title="调整天幕云雾薄厚与位置"
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer ${
                 showCloudPopover
                   ? "border-cyan bg-black/60 text-white shadow-lg shadow-cyan/20"
                   : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:text-white"
               }`}
             >
-              <Cloud size={13} aria-hidden="true" className={showCloudPopover ? "text-cyan" : "text-white/70"} />
+              <Cloud size={11} aria-hidden="true" className={showCloudPopover ? "text-cyan" : "text-white/70"} />
               <span>
-                云雾: {cloudSettings.density === 0 ? "晴朗" : `${Math.round(cloudSettings.density * 50)}%`}
+                云雾{cloudSettings.density === 0 ? ":晴" : `:${Math.round(cloudSettings.density * 50)}%`}
               </span>
             </button>
 
@@ -274,17 +274,17 @@ export default function StarSeaControls({
             type="button"
             onClick={onToggleWaveMode}
             title="切换海面状态：镜面平静 (水天一色) 或微波起伏 (柔波轻抚)"
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white/90 transition-all hover:border-cyan hover:text-white cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/40 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium text-white/90 transition-all hover:border-cyan hover:text-white cursor-pointer"
           >
             {waveMode === "calm" ? (
               <>
-                <Sparkles size={13} aria-hidden="true" className="text-white/70 animate-pulse" />
-                <span>海面: 镜面</span>
+                <Sparkles size={11} aria-hidden="true" className="text-white/70 animate-pulse" />
+                <span>镜面</span>
               </>
             ) : (
               <>
-                <Waves size={13} aria-hidden="true" className="text-white/70" />
-                <span>海面: 微波</span>
+                <Waves size={11} aria-hidden="true" className="text-white/70" />
+                <span>微波</span>
               </>
             )}
           </button>
@@ -294,7 +294,7 @@ export default function StarSeaControls({
             type="button"
             onClick={onToggleCenterTitle}
             title={showCenterTitle ? "隐藏画面中间的【星辰大海】标题文字" : "显示画面中间的【星辰大海】标题文字"}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer ${
               !showCenterTitle
                 ? "border-cyan/40 bg-cyan/15 text-cyan hover:border-cyan hover:text-white"
                 : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:text-white"
@@ -302,12 +302,12 @@ export default function StarSeaControls({
           >
             {!showCenterTitle ? (
               <>
-                <Eye size={13} aria-hidden="true" className="text-cyan" />
+                <Eye size={11} aria-hidden="true" className="text-cyan" />
                 <span>显示标题</span>
               </>
             ) : (
               <>
-                <EyeOff size={13} aria-hidden="true" className="text-white/70" />
+                <EyeOff size={11} aria-hidden="true" className="text-white/70" />
                 <span>隐藏标题</span>
               </>
             )}
@@ -318,20 +318,20 @@ export default function StarSeaControls({
             type="button"
             onClick={onEnterImmersive}
             title="完全隐藏全部UI界面，沉浸式观看星辰大海"
-            className="inline-flex items-center gap-1.5 rounded-full border border-cyan/30 bg-black/40 px-3 py-1 text-xs font-medium text-cyan/90 transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
+            className="inline-flex items-center gap-1 rounded-full border border-cyan/30 bg-black/40 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium text-cyan/90 transition-all hover:border-cyan hover:bg-cyan/15 hover:text-white cursor-pointer shadow-sm shadow-cyan/10"
           >
-            <Maximize2 size={13} aria-hidden="true" className="text-cyan" />
+            <Maximize2 size={11} aria-hidden="true" className="text-cyan" />
             <span>沉浸模式</span>
           </button>
         </div>
       </div>
 
-      {/* Main Interaction Controls Grid */}
-      <div className="mt-3 grid gap-2.5 sm:grid-cols-[1fr_0.95fr_1.05fr_auto] sm:items-end">
-        {/* Constellation Selector */}
-        <label className="grid gap-1 text-xs text-white/70 min-w-0">
-          <span className="flex items-center gap-1">
-            <Star size={12} className="text-cyan shrink-0" />
+      {/* Main Interaction Controls Grid (Compressed 2-col on mobile, 4-col on desktop) */}
+      <div className="mt-1 sm:mt-3 grid grid-cols-2 gap-1 sm:gap-2.5 sm:grid-cols-[1fr_0.95fr_1.05fr_auto] sm:items-end">
+        {/* Constellation Selector: col-span-2 on mobile, 1 col on desktop */}
+        <label className="col-span-2 sm:col-span-1 grid gap-0.5 sm:gap-1 min-w-0">
+          <span className="hidden sm:flex items-center gap-1 text-xs text-white/70">
+            <Star size={11} className="text-cyan shrink-0" />
             <span className="truncate">星宿天区 (选择跳转)</span>
           </span>
           <div className="relative flex items-center min-w-0">
@@ -340,7 +340,7 @@ export default function StarSeaControls({
               value={selectedId}
               onChange={(event) => onSelect(event.target.value)}
               style={{ colorScheme: "dark" }}
-              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+              className="h-[30px] sm:min-h-10 w-full min-w-0 appearance-none truncate rounded-lg sm:rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-[10.5px] sm:text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
             >
               <option value="" className="bg-[#0b1324] text-white">探索全天星图 (未指定)</option>
               {constellations.map((constellation) => (
@@ -353,16 +353,16 @@ export default function StarSeaControls({
           </div>
         </label>
 
-        {/* Observation Timezone */}
-        <label className="grid gap-1 text-xs text-white/70 min-w-0">
-          <span className="truncate">观测经度 / 时区</span>
+        {/* Observation Timezone: 1 col on mobile (half width), 1 col on desktop */}
+        <label className="col-span-1 grid gap-0.5 sm:gap-1 min-w-0">
+          <span className="hidden sm:block text-xs text-white/70 truncate">观测经度 / 时区</span>
           <div className="relative flex items-center min-w-0">
             <select
               aria-label="选择观测时区"
               value={selectedTimezone}
               onChange={(event) => onTimezoneChange(event.target.value)}
               style={{ colorScheme: "dark" }}
-              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+              className="h-[30px] sm:min-h-10 w-full min-w-0 appearance-none truncate rounded-lg sm:rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-[10.5px] sm:text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
             >
               {TIMEZONE_PRESETS.map((tz) => (
                 <option key={tz.id} value={tz.id} className="bg-[#0b1324] text-white">
@@ -374,16 +374,16 @@ export default function StarSeaControls({
           </div>
         </label>
 
-        {/* Observation Latitude */}
-        <label className="grid gap-1 text-xs text-white/70 min-w-0">
-          <span className="truncate">观测纬度带</span>
+        {/* Observation Latitude: 1 col on mobile (half width), 1 col on desktop */}
+        <label className="col-span-1 grid gap-0.5 sm:gap-1 min-w-0">
+          <span className="hidden sm:block text-xs text-white/70 truncate">观测纬度带</span>
           <div className="relative flex items-center min-w-0">
             <select
               aria-label="选择观测纬度"
               value={selectedLatitude}
               onChange={(event) => onLatitudeChange(event.target.value)}
               style={{ colorScheme: "dark" }}
-              className="min-h-10 w-full min-w-0 appearance-none truncate rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+              className="h-[30px] sm:min-h-10 w-full min-w-0 appearance-none truncate rounded-lg sm:rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-[10.5px] sm:text-xs text-white outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
             >
               {LATITUDE_PRESETS.map((lat) => (
                 <option key={lat.id} value={lat.id} className="bg-[#0b1324] text-white">
@@ -395,22 +395,24 @@ export default function StarSeaControls({
           </div>
         </label>
 
-        {/* Date & Time with Playback Streamer - Compact Style */}
-        <div className="grid gap-1 text-xs text-white/70 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <span className="truncate">观测时间 & 流转</span>
+        {/* Date & Time with Playback Streamer: col-span-2 on mobile, 1 col on desktop */}
+        <div className="col-span-2 sm:col-span-1 grid gap-0.5 sm:gap-1 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-xs text-white/70">
+            <span className="truncate hidden sm:inline">观测时间 & 流转</span>
             {isPlaying && (
-              <span className="flex items-center gap-1 text-[10px] text-cyan animate-pulse shrink-0">
+              <span className="flex items-center gap-1 text-[9px] sm:text-[10px] text-cyan animate-pulse shrink-0">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan"></span>
                 恒星日流转 ({playSpeed}x)
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <DarkDateTimePicker
-              value={observerDateValue(observer)}
-              onChange={onDateChange}
-            />
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="flex-1 min-w-0 sm:flex-initial">
+              <DarkDateTimePicker
+                value={observerDateValue(observer)}
+                onChange={onDateChange}
+              />
+            </div>
             {/* Speed Multiplier Dropdown */}
             <div className="relative flex items-center shrink-0">
               <select
@@ -419,14 +421,14 @@ export default function StarSeaControls({
                 onChange={(e) => onPlaySpeedChange?.(Number(e.target.value))}
                 title={`流转倍速：${playSpeed}x（每秒流转 ${playSpeed} 分钟）`}
                 style={{ colorScheme: "dark" }}
-                className="min-h-10 shrink-0 appearance-none rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
+                className="h-[30px] sm:min-h-10 w-[72px] sm:w-auto shrink-0 appearance-none rounded-lg sm:rounded-xl border border-white/15 bg-black/40 pl-3 pr-8 text-[10.5px] sm:text-xs font-medium text-cyan outline-none transition-colors hover:border-cyan focus:border-cyan cursor-pointer [color-scheme:dark]"
               >
-                <option value={1} className="bg-[#0b1324] text-white">1x (1分/秒)</option>
-                <option value={2} className="bg-[#0b1324] text-white">2x (2分/秒)</option>
-                <option value={5} className="bg-[#0b1324] text-white">5x (5分/秒)</option>
-                <option value={10} className="bg-[#0b1324] text-white">10x (10分/秒)</option>
-                <option value={30} className="bg-[#0b1324] text-white">30x (30分/秒)</option>
-                <option value={60} className="bg-[#0b1324] text-white">60x (1小时/秒)</option>
+                <option value={1} className="bg-[#0b1324] text-white">1x</option>
+                <option value={2} className="bg-[#0b1324] text-white">2x</option>
+                <option value={5} className="bg-[#0b1324] text-white">5x</option>
+                <option value={10} className="bg-[#0b1324] text-white">10x</option>
+                <option value={30} className="bg-[#0b1324] text-white">30x</option>
+                <option value={60} className="bg-[#0b1324] text-white">60x</option>
               </select>
               <ChevronDown size={13} aria-hidden="true" className="pointer-events-none absolute right-3 text-cyan/70 shrink-0" />
             </div>
@@ -434,20 +436,20 @@ export default function StarSeaControls({
               type="button"
               onClick={onTogglePlay}
               title={isPlaying ? "暂停流转" : `开启时间流转 (${playSpeed}x，每秒流转 ${playSpeed} 分钟)`}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
+              className={`flex h-[30px] w-[30px] sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border transition-all cursor-pointer ${
                 isPlaying
                   ? "border-cyan bg-cyan/20 text-cyan shadow-lg shadow-cyan/20"
                   : "border-white/15 bg-black/40 text-white/80 hover:border-cyan hover:text-cyan"
               }`}
             >
-              {isPlaying ? <Pause size={15} /> : <Play size={15} className="translate-x-0.5" />}
+              {isPlaying ? <Pause size={12} className="sm:w-[15px] sm:h-[15px]" /> : <Play size={12} className="translate-x-0.5 sm:w-[15px] sm:h-[15px]" />}
             </button>
           </div>
         </div>
       </div>
 
       {/* Bottom Contextual Description Row (Fixed-height, zero-jump, wheel-scrollable, hidden scrollbar) */}
-      <div className="mt-2.5 min-w-0 border-t border-white/10 pt-2">
+      <div className="mt-1 sm:mt-2.5 min-w-0 border-t border-white/10 pt-1 sm:pt-2">
         <div
           ref={descriptionScrollRef}
           title={
@@ -455,23 +457,30 @@ export default function StarSeaControls({
               ? `${selected.nameZh} / ${selected.nameEn}：${selected.descriptionZh}（可使用鼠标滚轮横向滚动浏览）`
               : undefined
           }
-          className="no-scrollbar flex h-6 min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs text-white/70 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="no-scrollbar flex h-4 sm:h-6 min-w-0 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[9.5px] sm:text-xs text-white/70 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           {selected ? (
             <>
-              <span className="shrink-0 font-semibold text-white">
-                已对准【{selected.nameZh} / {selected.nameEn}】
-              </span>
+              <button
+                type="button"
+                onClick={() => onSelect(selected.id)}
+                title="重新将镜头居中对准该星座"
+                className="shrink-0 font-semibold text-white hover:text-cyan flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Star size={11} className="text-cyan animate-pulse" />
+                <span>已对准【{selected.nameZh} / {selected.nameEn}】</span>
+                <span className="text-[10px] text-cyan underline decoration-cyan/40 hover:decoration-cyan">(点击重聚)</span>
+              </button>
               {optimalInfo && (
-                <span className="shrink-0 rounded-full border border-cyan/40 bg-cyan/15 px-2.5 py-0.5 text-[11px] font-medium leading-none text-cyan shadow-sm shadow-cyan/10">
+                <span className="shrink-0 rounded-full border border-cyan/40 bg-cyan/15 px-2 py-0.5 text-[10px] sm:text-[11px] font-medium leading-none text-cyan shadow-sm shadow-cyan/10">
                   已自动跳转至【{optimalInfo.optimalLatitudeNameZh} · {optimalInfo.seasonNameZh}】最佳视界
                 </span>
               )}
               <span className="shrink-0 text-white/60">：{selected.descriptionZh}</span>
             </>
           ) : (
-            <span className="shrink-0 text-[11px] text-white/45">
-              拖拽星空自由漫游；选择星宿天区可自动跳转至最佳观测经纬度与时间并将镜头居中对准；点击“流转”可观测恒星周日视运动。
+            <span className="shrink-0 text-[10px] sm:text-[11px] text-white/45">
+              轻击天幕进入沉浸模式；拖拽星空自由漫游；选择星宿天区可自动居中对准最佳视界。
             </span>
           )}
         </div>

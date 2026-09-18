@@ -140,10 +140,10 @@ export const SkyShader = {
       // Flows seamlessly all the way down to sea level, unblocked by horizon haze
       if (elevation > -0.005) {
         vec3 vEq = (milkyWayMatrix * vec4(ray, 0.0)).xyz;
-        float mwZenith = acos(clamp(vEq.z, -1.0, 1.0));
-        float v = mwZenith / 3.141592653589793;
-        float lon = atan(vEq.x, vEq.y);
-        float u = fract(lon / (2.0 * 3.141592653589793));
+        float declination = asin(clamp(vEq.z, -1.0, 1.0));
+        float v = declination / 3.141592653589793 + 0.5;
+        float ra = atan(vEq.y, vEq.x);
+        float u = fract(0.2239 - ra / 6.283185307179586);
 
         vec4 mwTex = texture2D(uMilkyWayMap, vec2(u, v));
 
