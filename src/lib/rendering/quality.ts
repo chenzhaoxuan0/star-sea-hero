@@ -45,11 +45,13 @@ export function chooseInitialQuality(
 
   // The CPU/viewport heuristic alone sends desktop render settings to phones on a slow
   // link, where the cost is not frame rate but the bytes needed to get there at all.
+  // `downlink` is deliberately not consulted: on a cold load Chrome seeds it with a
+  // pessimistic estimate and clamps it at 10, so it misreads fast links as slow ones.
   if (
     hints?.saveData === true ||
     hints?.effectiveType === "slow-2g" ||
     hints?.effectiveType === "2g" ||
-    (typeof hints?.downlink === "number" && hints.downlink > 0 && hints.downlink < 2)
+    hints?.effectiveType === "3g"
   ) {
     return "low";
   }

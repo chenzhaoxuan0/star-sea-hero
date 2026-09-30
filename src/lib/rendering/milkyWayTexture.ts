@@ -27,6 +27,25 @@ export const MILKY_WAY_TIER_WIDTH: Record<MilkyWayTier, number> = {
   "8k": 8192,
 };
 
+/**
+ * Approximate encoded size of each tier, used only to decide whether climbing to the
+ * next one is worth it before the request is issued. When the server reports a real
+ * Content-Length the observed value is preferred over these.
+ */
+export const MILKY_WAY_TIER_BYTES: Record<MilkyWayTier, number> = {
+  "1k": 32 * 1024,
+  "2k": 156 * 1024,
+  "4k": 3_302_272,
+  "8k": 7_494_016,
+};
+
+/**
+ * Longest we are willing to make a visitor wait for a background upgrade before the
+ * last already-good-enough encode is kept instead. At 4s the 8K needs roughly 1.9 MB/s
+ * to qualify, which is a reasonable bar for a ~7 MB asset.
+ */
+export const MILKY_WAY_UPGRADE_BUDGET_MS = 4000;
+
 export type MilkyWayLoadPhase = "downloading" | "ready";
 
 export type MilkyWayProgress = {
@@ -79,12 +98,18 @@ export function estimateTextureVRAM(width: number): number {
 }
 
 /**
- * Decides which encodes to fetch, smallest first.
+ * Decides the maximum ladder worth attempting, smallest first.
+ *
+ * This runs once, before anything has been downloaded, so it may only use signals that
+ * are trustworthy at that moment. In particular it ignores `navigator.connection.downlink`:
+ * Chrome seeds that with a pessimistic estimate (1.44 Mbps is its classic default) on a
+ * cold load and only ratchets it upward as it measures, while also clamping it at 10. A
+ * first-load gate built on it classifies fast connections as slow ones and strands the
+ * visitor on the 1K encode. Real throughput is measured instead, by
+ * `shouldClimbToTier`, once bytes have actually moved.
  *
  * `1k` and `2k` together are under 200 KB, so they are always offered: they are what
- * makes the galaxy visible on a cold load. `4k` and `8k` are gated on the network and
- * on the GPU, because both cost far more in download time and VRAM than they add in
- * visible detail on a ~62 degree FOV sky dome.
+ * makes the galaxy visible at all on a cold load.
  */
 export function chooseMilkyWayLadder(options: {
   viewportWidth: number;
@@ -99,33 +124,25 @@ export function chooseMilkyWayLadder(options: {
   const { viewportWidth, maxTextureSize, hints = {} } = options;
   const ladder: MilkyWayTier[] = ["1k", "2k"];
 
-  const effectiveType = hints.effectiveType;
-  const downlink = hints.downlink;
+  // Only the explicitly slow classes are trusted here; 3G is included because it is a
+  // deliberate "don't send me large assets" signal rather than a cold measurement.
   const slowLink =
     hints.saveData === true ||
-    effectiveType === "slow-2g" ||
-    effectiveType === "2g" ||
-    effectiveType === "3g" ||
-    (typeof downlink === "number" && downlink > 0 && downlink < 3);
+    hints.effectiveType === "slow-2g" ||
+    hints.effectiveType === "2g" ||
+    hints.effectiveType === "3g";
 
-  // 4K is the practical ceiling for detail; it stays on for ordinary connections and
-  // is dropped for data-saver users, slow links and small screens.
   if (!slowLink && viewportWidth >= 640 && MILKY_WAY_TIER_WIDTH["4k"] <= maxTextureSize) {
     ladder.push("4k");
   }
 
-  // 8K costs ~7 MB on the wire and ~179 MB of VRAM once decoded and mipmapped.
-  // Only request it when the link, the viewport, the GPU limit and device memory all
-  // agree that it is affordable.
-  const fastLink =
-    !hints.saveData &&
-    (effectiveType === "4g" || (typeof downlink === "number" && downlink >= 10)) &&
-    !(typeof downlink === "number" && downlink < 10);
+  // 8K costs ~7 MB on the wire and ~179 MB of VRAM once decoded and mipmapped. Whether
+  // the link can absorb that is decided later by measurement, not guessed now; here we
+  // only rule out the cases that make it pointless regardless of speed.
   const memoryOk = typeof hints.deviceMemory !== "number" || hints.deviceMemory >= 8;
 
   if (
     ladder.includes("4k") &&
-    fastLink &&
     memoryOk &&
     viewportWidth >= 1200 &&
     MILKY_WAY_TIER_WIDTH["8k"] <= maxTextureSize &&
@@ -135,6 +152,28 @@ export function chooseMilkyWayLadder(options: {
   }
 
   return ladder;
+}
+
+/**
+ * Runtime gate between rungs, driven by throughput actually observed so far.
+ *
+ * `bytesSoFar` / `msSoFar` come from the tiers that already landed, so this measures
+ * the real connection to this visitor rather than a browser guess. The next tier is
+ * only worth starting if the measured rate would deliver it inside the budget.
+ */
+export function shouldClimbToTier(options: {
+  nextTier: MilkyWayTier;
+  bytesSoFar: number;
+  msSoFar: number;
+  budgetMs?: number;
+}): boolean {
+  const { nextTier, bytesSoFar, msSoFar, budgetMs = MILKY_WAY_UPGRADE_BUDGET_MS } = options;
+  // Not enough of a sample to extrapolate from; stay optimistic and let the request run.
+  if (bytesSoFar <= 0 || msSoFar <= 0) return true;
+
+  const bytesPerMs = bytesSoFar / msSoFar;
+  const projectedMs = MILKY_WAY_TIER_BYTES[nextTier] / bytesPerMs;
+  return projectedMs <= budgetMs;
 }
 
 /**
@@ -153,11 +192,14 @@ export function loadMilkyWayTexture(
     maxAnisotropy: number;
     onProgress?: (progress: MilkyWayProgress) => void;
   },
-): Promise<THREE.Texture> {
+): Promise<{ texture: THREE.Texture; bytes: number }> {
   const { maxAnisotropy, onProgress } = options;
   const loader = new THREE.TextureLoader();
+  // Last observed progress, kept so the resolved byte count survives a server that
+  // omits Content-Length and therefore reports event.total as 0.
+  let observedBytes = 0;
 
-  return new Promise<THREE.Texture>((resolve, reject) => {
+  return new Promise<{ texture: THREE.Texture; bytes: number }>((resolve, reject) => {
     loader.load(
       MILKY_WAY_TEXTURES[tier],
       (texture) => {
@@ -171,9 +213,13 @@ export function loadMilkyWayTexture(
         // an over-request just wastes filtering work without improving the result.
         texture.anisotropy = Math.min(16, Math.max(1, maxAnisotropy));
         onProgress?.({ tier, phase: "ready", loaded: 0, total: 0 });
-        resolve(texture);
+        resolve({
+          texture,
+          bytes: observedBytes > 0 ? observedBytes : MILKY_WAY_TIER_BYTES[tier],
+        });
       },
       (event) => {
+        if (event.loaded > 0) observedBytes = event.loaded;
         onProgress?.({
           tier,
           phase: "downloading",

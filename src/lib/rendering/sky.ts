@@ -5,6 +5,7 @@ import {
   chooseMilkyWayLadder,
   loadMilkyWayTexture,
   readNetworkHints,
+  shouldClimbToTier,
   type MilkyWayProgress,
 } from "./milkyWayTexture";
 import type { ConstellationDefinition, HorizonPosition, StarRecord } from "@/types/astronomy";
@@ -76,10 +77,29 @@ export function createSky(
   };
 
   void (async () => {
-    for (const tier of ladder) {
+    // Throughput actually observed on this connection so far, used to decide whether the
+    // next rung is worth starting. Browser-reported link estimates are cold and
+    // unreliable at first load; measured bytes are not.
+    let bytesSoFar = 0;
+    let transferStartedAt = 0;
+
+    for (let index = 0; index < ladder.length; index += 1) {
       if (milkyWayDisposed) return;
+      const tier = ladder[index];
+      const nextTier = ladder[index + 1];
+
+      if (
+        nextTier &&
+        !shouldClimbToTier({ nextTier, bytesSoFar, msSoFar: performance.now() - transferStartedAt })
+      ) {
+        // The link is not delivering fast enough to make the next encode feel like an
+        // improvement. Keep what is on screen instead of stalling behind a 7 MB wait.
+        return;
+      }
+
+      const startedAt = performance.now();
       try {
-        const texture = await loadMilkyWayTexture(tier, {
+        const { texture, bytes } = await loadMilkyWayTexture(tier, {
           maxAnisotropy: options?.maxAnisotropy ?? 1,
           onProgress: options?.onMilkyWayProgress,
         });
@@ -88,6 +108,8 @@ export function createSky(
           return;
         }
         bindMilkyWayTexture(texture);
+        if (transferStartedAt === 0) transferStartedAt = startedAt;
+        bytesSoFar += bytes;
       } catch (error) {
         // A failed tier is not fatal: keep whatever lower-resolution encode is already
         // on screen and stop climbing rather than retrying into a dead end.
