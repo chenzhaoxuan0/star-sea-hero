@@ -155,11 +155,22 @@ export function chooseMilkyWayLadder(options: {
 }
 
 /**
- * Runtime gate between rungs, driven by throughput actually observed so far.
+ * Smallest transfer worth extrapolating a link speed from.
  *
- * `bytesSoFar` / `msSoFar` come from the tiers that already landed, so this measures
- * the real connection to this visitor rather than a browser guess. The next tier is
- * only worth starting if the measured rate would deliver it inside the budget.
+ * A 31KB or 156KB file completes in roughly one round trip, so its bytes-per-millisecond
+ * measures latency rather than bandwidth and would read as an extremely slow link no
+ * matter how fast the connection actually is. Only rungs at or above this size are used
+ * as a throughput sample; below it the gate declines to extrapolate and lets the request
+ * run.
+ */
+export const MILKY_WAY_MIN_SAMPLE_BYTES = 1024 * 1024;
+
+/**
+ * Runtime gate between rungs, driven by throughput actually observed on this connection.
+ *
+ * `bytesSoFar` / `msSoFar` must describe a bandwidth-dominated transfer (see
+ * `MILKY_WAY_MIN_SAMPLE_BYTES`). The next tier is only worth starting if the measured
+ * rate would deliver it inside the budget.
  */
 export function shouldClimbToTier(options: {
   nextTier: MilkyWayTier;
@@ -168,12 +179,10 @@ export function shouldClimbToTier(options: {
   budgetMs?: number;
 }): boolean {
   const { nextTier, bytesSoFar, msSoFar, budgetMs = MILKY_WAY_UPGRADE_BUDGET_MS } = options;
-  // Not enough of a sample to extrapolate from; stay optimistic and let the request run.
-  if (bytesSoFar <= 0 || msSoFar <= 0) return true;
+  if (msSoFar <= 0 || bytesSoFar < MILKY_WAY_MIN_SAMPLE_BYTES) return true;
 
   const bytesPerMs = bytesSoFar / msSoFar;
-  const projectedMs = MILKY_WAY_TIER_BYTES[nextTier] / bytesPerMs;
-  return projectedMs <= budgetMs;
+  return MILKY_WAY_TIER_BYTES[nextTier] / bytesPerMs <= budgetMs;
 }
 
 /**

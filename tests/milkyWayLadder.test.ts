@@ -110,17 +110,30 @@ describe("Milky Way progressive ladder", () => {
 describe("measured-throughput upgrade gate", () => {
   const MB = 1024 * 1024;
 
-  it("climbs when the observed rate would deliver the next tier in budget", () => {
-    // 1k+2k+4k arrived in 1.2s => ~2.9 MB/s, enough for the ~7MB 8K inside 4s.
+  // Regression: the gate used to divide cumulative bytes by cumulative elapsed time, so
+  // the 31KB first rung dominated the sample with its own round-trip latency. That read
+  // as a ~0.06 MB/s link, projected ~52s for the 4K, and stopped the ladder dead after
+  // 1K. Latency-bound transfers must not be used as a bandwidth sample.
+  it("ignores a latency-bound sample and keeps climbing", () => {
     expect(
-      shouldClimbToTier({ nextTier: "8k", bytesSoFar: 3.5 * MB, msSoFar: 1200 }),
+      shouldClimbToTier({ nextTier: "2k", bytesSoFar: 31_808, msSoFar: 316 }),
+    ).toBe(true);
+    expect(
+      shouldClimbToTier({ nextTier: "4k", bytesSoFar: 156_040, msSoFar: 250 }),
+    ).toBe(true);
+  });
+
+  it("climbs when the observed rate would deliver the next tier in budget", () => {
+    // The 4K landed in 1.5s => ~2.2 MB/s, enough for the ~7MB 8K inside 4s.
+    expect(
+      shouldClimbToTier({ nextTier: "8k", bytesSoFar: 3_301_376, msSoFar: 1500 }),
     ).toBe(true);
   });
 
   it("stops climbing when the link is too slow to make the upgrade worthwhile", () => {
-    // Same bytes, but spread over 9s => ~0.39 MB/s, which would take ~19s for the 8K.
+    // The 4K took 10s => ~0.33 MB/s, which would need ~22s for the 8K.
     expect(
-      shouldClimbToTier({ nextTier: "8k", bytesSoFar: 3.5 * MB, msSoFar: 9000 }),
+      shouldClimbToTier({ nextTier: "8k", bytesSoFar: 3_301_376, msSoFar: 10_000 }),
     ).toBe(false);
   });
 
@@ -130,15 +143,13 @@ describe("measured-throughput upgrade gate", () => {
 
   it("puts the 8K rung at roughly 1.9MB/s of measured throughput", () => {
     const eightK = MILKY_WAY_TIER_BYTES["8k"];
-    // 1.9MB/s over a 4s window is ~7.6MB, which just clears the 8K payload.
+    const window = 4000;
     const fastEnough = 7.6 * MB;
     const tooSlow = 4 * MB;
-    const window = 4000;
     expect(fastEnough / window).toBeGreaterThan(eightK / window);
     expect(
       shouldClimbToTier({ nextTier: "8k", bytesSoFar: fastEnough, msSoFar: window }),
     ).toBe(true);
-    // The same window at ~1MB/s would need over 7s for the 8K, so we keep the 4K.
     expect(
       shouldClimbToTier({ nextTier: "8k", bytesSoFar: tooSlow, msSoFar: window }),
     ).toBe(false);

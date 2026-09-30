@@ -77,21 +77,19 @@ export function createSky(
   };
 
   void (async () => {
-    // Throughput actually observed on this connection so far, used to decide whether the
-    // next rung is worth starting. Browser-reported link estimates are cold and
-    // unreliable at first load; measured bytes are not.
-    let bytesSoFar = 0;
-    let transferStartedAt = 0;
+    // Throughput sample for the rung just finished. Only bandwidth-dominated transfers
+    // are usable; shouldClimbToTier ignores anything smaller. Browser-reported link
+    // estimates are cold and unreliable at first load, so measured bytes are the only
+    // trustworthy input here.
+    let sampleBytes = 0;
+    let sampleMs = 0;
 
     for (let index = 0; index < ladder.length; index += 1) {
       if (milkyWayDisposed) return;
       const tier = ladder[index];
       const nextTier = ladder[index + 1];
 
-      if (
-        nextTier &&
-        !shouldClimbToTier({ nextTier, bytesSoFar, msSoFar: performance.now() - transferStartedAt })
-      ) {
+      if (nextTier && !shouldClimbToTier({ nextTier, bytesSoFar: sampleBytes, msSoFar: sampleMs })) {
         // The link is not delivering fast enough to make the next encode feel like an
         // improvement. Keep what is on screen instead of stalling behind a 7 MB wait.
         return;
@@ -108,8 +106,10 @@ export function createSky(
           return;
         }
         bindMilkyWayTexture(texture);
-        if (transferStartedAt === 0) transferStartedAt = startedAt;
-        bytesSoFar += bytes;
+        // Measure this rung alone. A cumulative rate would be dominated by the latency
+        // of the tiny leading encodes and would report a hopelessly slow link.
+        sampleBytes = bytes;
+        sampleMs = performance.now() - startedAt;
       } catch (error) {
         // A failed tier is not fatal: keep whatever lower-resolution encode is already
         // on screen and stop climbing rather than retrying into a dead end.
