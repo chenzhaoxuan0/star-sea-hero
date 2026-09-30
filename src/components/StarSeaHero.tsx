@@ -20,13 +20,31 @@ import StarSeaLoading, {
   type StarSeaLoadingState,
   type StarSeaUpgradeProgress,
 } from "./StarSeaLoading";
-import type { MilkyWayProgress } from "@/lib/rendering/milkyWayTexture";
+import type { MilkyWayProgress, MilkyWayTier } from "@/lib/rendering/milkyWayTexture";
+
+const MILKY_WAY_CYCLE: Array<MilkyWayTier | "auto"> = ["auto", "4k", "8k"];
+const MILKY_WAY_TIER_STORAGE_KEY = "star-sea-hero:milky-way-tier";
+
+function readStoredMilkyWayTier(): MilkyWayTier | "auto" {
+  if (typeof window === "undefined") return "auto";
+  try {
+    const stored = window.localStorage.getItem(MILKY_WAY_TIER_STORAGE_KEY);
+    return MILKY_WAY_CYCLE.includes(stored as MilkyWayTier | "auto")
+      ? (stored as MilkyWayTier | "auto")
+      : "auto";
+  } catch {
+    return "auto";
+  }
+}
 
 export default function StarSeaHero() {
   const [loadingState, setLoadingState] =
     useState<StarSeaLoadingState>("interactive");
   // Non-null only while a larger Milky Way encode streams in behind the visible one.
   const [mwUpgrade, setMwUpgrade] = useState<StarSeaUpgradeProgress | null>(null);
+  // "auto" keeps the adaptive ladder; a concrete tier is a manual override the visitor
+  // asked for, so it is honoured even when the measured link speed would have stopped short.
+  const [milkyWayTier, setMilkyWayTier] = useState<MilkyWayTier | "auto">("auto");
   const [fallback, setFallback] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [observer, setObserver] = useState<Observer>(DEFAULT_OBSERVER);
@@ -73,6 +91,24 @@ export default function StarSeaHero() {
     setMwUpgrade(
       describeMilkyWayProgress(progress.tier, progress.phase, progress.loaded, progress.total),
     );
+  }, []);
+
+  // Restore a previously chosen clarity after hydration, so the canvas applies it on its
+  // first ladder run rather than only after the visitor touches the toggle.
+  useEffect(() => {
+    setMilkyWayTier(readStoredMilkyWayTier());
+  }, []);
+
+  const handleCycleMilkyWayTier = useCallback(() => {
+    setMilkyWayTier((current) => {
+      const next = MILKY_WAY_CYCLE[(MILKY_WAY_CYCLE.indexOf(current) + 1) % MILKY_WAY_CYCLE.length];
+      try {
+        window.localStorage.setItem(MILKY_WAY_TIER_STORAGE_KEY, next);
+      } catch {
+        // Private-mode storage failures must not break the control.
+      }
+      return next;
+    });
   }, []);
 
   // When user selects a constellation, automatically jump to its optimal observation season and latitude
@@ -200,6 +236,7 @@ export default function StarSeaHero() {
           onReady={handleReady}
           onError={handleError}
           onMilkyWayProgress={handleMilkyWayProgress}
+          milkyWayTier={milkyWayTier}
         />
       )}
       <div className="star-sea-vignette" />
@@ -244,6 +281,8 @@ export default function StarSeaHero() {
         onToggleCenterTitle={() => setShowCenterTitle((prev) => !prev)}
         isImmersive={isImmersive}
         onEnterImmersive={handleEnterImmersive}
+        milkyWayTier={milkyWayTier}
+        onCycleMilkyWayTier={handleCycleMilkyWayTier}
       />
 
       {!fallback && (

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { QualitySettings } from "./quality";
 import type { ConstellationDefinition, HorizonPosition, StarRecord } from "@/types/astronomy";
 import { createSky, type SkyHandle, type SkyOptions } from "./sky";
+import type { MilkyWayTier } from "./milkyWayTexture";
 import { createOcean, type OceanHandle } from "./ocean";
 
 export type SceneHandle = {
@@ -12,6 +13,7 @@ export type SceneHandle = {
   updateConstellation: (id: string) => void;
   updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
   updateMilkyWay: (matrix: THREE.Matrix4) => void;
+  setMilkyWayTarget: (target: MilkyWayTier | "auto") => void;
   updateClouds: (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => void;
   setWaveMode: (mode: number) => void;
   render: (elapsed: number) => void;
@@ -107,6 +109,10 @@ export function createScene(
     sky.updateMilkyWay(matrix);
   };
 
+  const setMilkyWayTarget = (target: MilkyWayTier | "auto") => {
+    sky.setMilkyWayTarget(target);
+  };
+
   const updateClouds = (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => {
     sky.updateClouds(density, elevation, coverage, offset);
   };
@@ -135,6 +141,7 @@ export function createScene(
     updateConstellation,
     updateStars,
     updateMilkyWay,
+    setMilkyWayTarget,
     updateClouds,
     setWaveMode,
     render,

@@ -4,9 +4,11 @@ import type { QualitySettings } from "./quality";
 import {
   chooseMilkyWayLadder,
   loadMilkyWayTexture,
+  MILKY_WAY_TIER_ORDER,
   readNetworkHints,
   shouldClimbToTier,
   type MilkyWayProgress,
+  type MilkyWayTier,
 } from "./milkyWayTexture";
 import type { ConstellationDefinition, HorizonPosition, StarRecord } from "@/types/astronomy";
 
@@ -28,6 +30,11 @@ export type SkyHandle = {
   updateConstellations: (selectedId: string) => void;
   updateStars: (newStars: Array<StarRecord & { horizon: HorizonPosition }>, selectedId: string) => void;
   updateMilkyWay: (matrix: THREE.Matrix4) => void;
+  /**
+   * Re-run the panorama ladder. A concrete tier is treated as an explicit request and
+   * bypasses the measured-throughput gate; "auto" restores the adaptive behaviour.
+   */
+  setMilkyWayTarget: (target: MilkyWayTier | "auto") => void;
   updateClouds: (density: number, elevation: number, coverage: number, offset?: { x: number; y: number }) => void;
   dispose: () => void;
 };
@@ -62,12 +69,12 @@ export function createSky(
   // the dome renders stars and gradient while the panorama streams in behind them.
   let milkyWayTexture: THREE.Texture | null = null;
   let milkyWayDisposed = false;
-
-  const ladder = chooseMilkyWayLadder({
-    viewportWidth: typeof window !== "undefined" ? window.innerWidth : 1920,
-    maxTextureSize: options?.maxTextureSize ?? 4096,
-    hints: readNetworkHints(),
-  });
+  // Bumped whenever a new run supersedes the previous one, so a late-arriving texture
+  // from an abandoned run is discarded instead of replacing a newer one.
+  let milkyWayRunId = 0;
+  // "auto" lets the ladder stop where the measured link speed says it should; a concrete
+  // tier is a user request to go at least that sharp, and the gate is bypassed.
+  let milkyWayTarget: MilkyWayTier | "auto" = "auto";
 
   const bindMilkyWayTexture = (texture: THREE.Texture) => {
     const previous = milkyWayTexture;
@@ -76,7 +83,25 @@ export function createSky(
     previous?.dispose();
   };
 
-  void (async () => {
+  const startMilkyWayLadder = () => {
+    const runId = (milkyWayRunId += 1);
+    const forced = milkyWayTarget;
+    const base = chooseMilkyWayLadder({
+      viewportWidth: typeof window !== "undefined" ? window.innerWidth : 1920,
+      maxTextureSize: options?.maxTextureSize ?? 4096,
+      hints: readNetworkHints(),
+    });
+    // A forced tier is intersected with the adaptive ladder rather than replacing it, so
+    // the GPU limits still apply: forcing 8K on a device that cannot allocate an 8192-wide
+    // texture would fail, so the request is capped at whatever the hardware allows.
+    const ceiling =
+      forced === "auto"
+        ? MILKY_WAY_TIER_ORDER.length
+        : MILKY_WAY_TIER_ORDER.indexOf(forced);
+    const ladder = base.filter(
+      (tier) => MILKY_WAY_TIER_ORDER.indexOf(tier) < ceiling,
+    );
+
     // Throughput sample for the rung just finished. Only bandwidth-dominated transfers
     // are usable; shouldClimbToTier ignores anything smaller. Browser-reported link
     // estimates are cold and unreliable at first load, so measured bytes are the only
@@ -84,40 +109,53 @@ export function createSky(
     let sampleBytes = 0;
     let sampleMs = 0;
 
-    for (let index = 0; index < ladder.length; index += 1) {
-      if (milkyWayDisposed) return;
-      const tier = ladder[index];
-      const nextTier = ladder[index + 1];
+    void (async () => {
+      for (let index = 0; index < ladder.length; index += 1) {
+        if (milkyWayDisposed || runId !== milkyWayRunId) return;
+        const tier = ladder[index];
+        const nextTier = ladder[index + 1];
 
-      if (nextTier && !shouldClimbToTier({ nextTier, bytesSoFar: sampleBytes, msSoFar: sampleMs })) {
-        // The link is not delivering fast enough to make the next encode feel like an
-        // improvement. Keep what is on screen instead of stalling behind a 7 MB wait.
-        return;
-      }
-
-      const startedAt = performance.now();
-      try {
-        const { texture, bytes } = await loadMilkyWayTexture(tier, {
-          maxAnisotropy: options?.maxAnisotropy ?? 1,
-          onProgress: options?.onMilkyWayProgress,
-        });
-        if (milkyWayDisposed) {
-          texture.dispose();
+        if (
+          forced === "auto" &&
+          nextTier &&
+          !shouldClimbToTier({ nextTier, bytesSoFar: sampleBytes, msSoFar: sampleMs })
+        ) {
+          // The link is not delivering fast enough to make the next encode feel like an
+          // improvement. Keep what is on screen instead of stalling behind a 7 MB wait.
           return;
         }
-        bindMilkyWayTexture(texture);
-        // Measure this rung alone. A cumulative rate would be dominated by the latency
-        // of the tiny leading encodes and would report a hopelessly slow link.
-        sampleBytes = bytes;
-        sampleMs = performance.now() - startedAt;
-      } catch (error) {
-        // A failed tier is not fatal: keep whatever lower-resolution encode is already
-        // on screen and stop climbing rather than retrying into a dead end.
-        console.warn(`Star Sea: Milky Way ${tier} texture failed to load.`, error);
-        return;
+
+        const startedAt = performance.now();
+        try {
+          const { texture, bytes } = await loadMilkyWayTexture(tier, {
+            maxAnisotropy: options?.maxAnisotropy ?? 1,
+            onProgress: options?.onMilkyWayProgress,
+          });
+          if (milkyWayDisposed || runId !== milkyWayRunId) {
+            texture.dispose();
+            return;
+          }
+          bindMilkyWayTexture(texture);
+          // Measure this rung alone. A cumulative rate would be dominated by the latency
+          // of the tiny leading encodes and would report a hopelessly slow link.
+          sampleBytes = bytes;
+          sampleMs = performance.now() - startedAt;
+        } catch (error) {
+          // A failed tier is not fatal: keep whatever lower-resolution encode is already
+          // on screen and stop climbing rather than retrying into a dead end.
+          console.warn(`Star Sea: Milky Way ${tier} texture failed to load.`, error);
+          return;
+        }
       }
-    }
-  })();
+    })();
+  };
+
+  const setMilkyWayTarget = (target: MilkyWayTier | "auto") => {
+    milkyWayTarget = target;
+    startMilkyWayLadder();
+  };
+
+  startMilkyWayLadder();
 
   const milkyWayMatrix = initialMilkyWayMatrix
     ? initialMilkyWayMatrix.clone()
@@ -589,6 +627,8 @@ export function createSky(
 
   const dispose = () => {
     milkyWayDisposed = true;
+    // Invalidate any in-flight run so a late texture cannot bind after teardown.
+    milkyWayRunId += 1;
     milkyWayTexture?.dispose();
     milkyWayTexture = null;
     skyGeometry.dispose();
@@ -611,6 +651,7 @@ export function createSky(
     updateConstellations,
     updateStars,
     updateMilkyWay,
+    setMilkyWayTarget,
     updateClouds,
     dispose,
   };

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Cloud, Eye, EyeOff, Globe2, Maximize2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
+import { Aperture, ChevronDown, Cloud, Eye, EyeOff, Globe2, Maximize2, Pause, Play, Rotate3d, RotateCcw, Sparkles, Star, Waves } from "lucide-react";
 import type { CloudSettings, ConstellationDefinition, Observer } from "@/types/astronomy";
+import type { MilkyWayTier } from "@/lib/rendering/milkyWayTexture";
 import {
   LATITUDE_PRESETS,
   TIMEZONE_PRESETS,
@@ -33,6 +34,8 @@ export default function StarSeaControls({
   onToggleCenterTitle,
   isImmersive = false,
   onEnterImmersive,
+  milkyWayTier = "auto",
+  onCycleMilkyWayTier,
 }: {
   observer: Observer;
   constellations: ConstellationDefinition[];
@@ -55,6 +58,8 @@ export default function StarSeaControls({
   onToggleCenterTitle?: () => void;
   isImmersive?: boolean;
   onEnterImmersive?: () => void;
+  milkyWayTier?: MilkyWayTier | "auto";
+  onCycleMilkyWayTier?: () => void;
 }) {
   const [showCloudPopover, setShowCloudPopover] = useState(false);
   const descriptionScrollRef = useRef<HTMLDivElement>(null);
@@ -311,6 +316,25 @@ export default function StarSeaControls({
                 <span>隐藏标题</span>
               </>
             )}
+          </button>
+
+          {/* Milky Way Resolution Cycle Button */}
+          <button
+            type="button"
+            onClick={onCycleMilkyWayTier}
+            title={
+              milkyWayTier === "auto"
+                ? "银河清晰度：自动（按实测网速渐进升级到 8K）"
+                : `银河清晰度：已锁定 ${milkyWayTier.toUpperCase()}，点击恢复自动`
+            }
+            className={`inline-flex items-center gap-1 rounded-full border px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium transition-all cursor-pointer ${
+              milkyWayTier !== "auto"
+                ? "border-cyan/40 bg-cyan/15 text-cyan hover:border-cyan hover:text-white"
+                : "border-white/15 bg-black/40 text-white/90 hover:border-cyan hover:text-white"
+            }`}
+          >
+            <Aperture size={11} aria-hidden="true" className={milkyWayTier !== "auto" ? "text-cyan" : "text-white/70"} />
+            <span>银河 {milkyWayTier === "auto" ? "自动" : milkyWayTier.toUpperCase()}</span>
           </button>
 
           {/* Immersive Mode Button */}

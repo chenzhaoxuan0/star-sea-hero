@@ -12,6 +12,15 @@ import * as THREE from "three";
  */
 export type MilkyWayTier = "1k" | "2k" | "4k" | "8k";
 
+/** Ordered smallest to largest; also the order the ladder always climbs. */
+export const MILKY_WAY_TIER_ORDER: MilkyWayTier[] = ["1k", "2k", "4k", "8k"];
+
+/** Everything up to and including `tier`. */
+export function milkyWayTiersUpTo(tier: MilkyWayTier): MilkyWayTier[] {
+  const index = MILKY_WAY_TIER_ORDER.indexOf(tier);
+  return MILKY_WAY_TIER_ORDER.slice(0, index + 1);
+}
+
 export const MILKY_WAY_TEXTURES: Record<MilkyWayTier, string> = {
   "1k": "/textures/milkyway_1k_eq.webp",
   "2k": "/textures/milkyway_2k_eq.webp",
@@ -124,15 +133,17 @@ export function chooseMilkyWayLadder(options: {
   const { viewportWidth, maxTextureSize, hints = {} } = options;
   const ladder: MilkyWayTier[] = ["1k", "2k"];
 
-  // Only the explicitly slow classes are trusted here; 3G is included because it is a
-  // deliberate "don't send me large assets" signal rather than a cold measurement.
-  const slowLink =
+  // Only 2G and slower are trusted as a hard stop. Chrome's effective-type
+  // classification is coarse and reports plenty of ordinary broadband as "3g", so
+  // capping there stranded visitors on a 1024-wide encode that reads as permanently
+  // blurry. 3G still gets the 4K, and the measured-throughput gate then decides about
+  // the 8K from how long that 4K actually took.
+  const hopelessLink =
     hints.saveData === true ||
     hints.effectiveType === "slow-2g" ||
-    hints.effectiveType === "2g" ||
-    hints.effectiveType === "3g";
+    hints.effectiveType === "2g";
 
-  if (!slowLink && viewportWidth >= 640 && MILKY_WAY_TIER_WIDTH["4k"] <= maxTextureSize) {
+  if (!hopelessLink && viewportWidth >= 640 && MILKY_WAY_TIER_WIDTH["4k"] <= maxTextureSize) {
     ladder.push("4k");
   }
 

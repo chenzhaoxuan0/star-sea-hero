@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   chooseMilkyWayLadder,
   estimateTextureVRAM,
+  milkyWayTiersUpTo,
   shouldClimbToTier,
   MILKY_WAY_TIER_BYTES,
+  MILKY_WAY_TIER_ORDER,
   type MilkyWayTier,
 } from "@/lib/rendering/milkyWayTexture";
 
@@ -29,23 +31,39 @@ describe("Milky Way progressive ladder", () => {
     expect(ladder).toEqual(["1k", "2k", "4k", "8k"]);
   });
 
-  it("drops 4K and 8K on a slow link", () => {
+  // Chrome's effective-type buckets are very wide: "3g" spans roughly 0.7-10 Mbps. Capping
+  // at 2K for the whole bucket stranded plenty of normal connections on a 1024-wide
+  // encode, which reads as a permanently blurry sky. The ladder is meant to degrade
+  // gracefully, so 3G is allowed the 4K and the measured gate then rules on the 8K.
+  it("lets a coarse 3g classification still reach 4K", () => {
     const ladder = chooseMilkyWayLadder({
       ...DESKTOP,
       hints: { effectiveType: "3g", downlink: 1.5 },
     });
-    expect(has(ladder, "4k")).toBe(false);
-    expect(has(ladder, "8k")).toBe(false);
+    expect(has(ladder, "4k")).toBe(true);
   });
 
-  it("honours an explicit data-saver preference but still shows the galaxy", () => {
-    // A data-saver user asked to be frugal, so 4K (3.15MB) and 8K (7MB) are both
-    // withheld. 1K + 2K is ~183KB and still renders the full galaxy, just softer.
+  it("hard-stops at 2K on 2g, where 3.3MB would be a real burden", () => {
     const ladder = chooseMilkyWayLadder({
       ...DESKTOP,
-      hints: { saveData: true, effectiveType: "4g", downlink: 50 },
+      hints: { effectiveType: "2g", downlink: 0.4 },
     });
     expect(ladder).toEqual(["1k", "2k"]);
+  });
+
+  it("hard-stops at 2K for a data-saver user even on a fast link", () => {
+    const ladder = chooseMilkyWayLadder({
+      ...DESKTOP,
+      hints: { saveData: true, effectiveType: "4g", downlink: 100, deviceMemory: 16 },
+    });
+    expect(ladder).toEqual(["1k", "2k"]);
+  });
+
+  it("orders tiers smallest first and slices them up to a ceiling", () => {
+    expect(MILKY_WAY_TIER_ORDER).toEqual(["1k", "2k", "4k", "8k"]);
+    expect(milkyWayTiersUpTo("4k")).toEqual(["1k", "2k", "4k"]);
+    expect(milkyWayTiersUpTo("8k")).toEqual(["1k", "2k", "4k", "8k"]);
+    expect(milkyWayTiersUpTo("1k")).toEqual(["1k"]);
   });
 
   it("never offers 8K on a small viewport even on a fast link", () => {
@@ -92,12 +110,20 @@ describe("Milky Way progressive ladder", () => {
     expect(ladder).toEqual(["1k", "2k", "4k", "8k"]);
   });
 
-  it("still honours an explicit 3g classification", () => {
+  // chooseMilkyWayLadder answers "what is possible on this hardware and budget"; the
+  // measured-throughput gate answers "what should actually be requested right now". So a
+  // 3G-classified link can still list the 8K statically and rely on the gate to stop it
+  // once the slow 4K timing comes back.
+  it("leaves the 8K decision to the measured gate rather than to effectiveType", () => {
     const ladder = chooseMilkyWayLadder({
       ...DESKTOP,
       hints: { effectiveType: "3g", downlink: 10, deviceMemory: 8 },
     });
-    expect(has(ladder, "4k")).toBe(false);
+    expect(has(ladder, "4k")).toBe(true);
+    // A 4K that took 10s is ~0.33MB/s, which projects to ~22s for the 8K.
+    expect(
+      shouldClimbToTier({ nextTier: "8k", bytesSoFar: 3_301_376, msSoFar: 10_000 }),
+    ).toBe(false);
   });
 
   it("models 8K as ~179MB of VRAM versus ~45MB for 4K", () => {

@@ -10,6 +10,7 @@ import {
 import {
   readNetworkHints,
   type MilkyWayProgress,
+  type MilkyWayTier,
 } from "@/lib/rendering/milkyWayTexture";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
 import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
@@ -39,6 +40,7 @@ export default function StarSeaCanvas({
   onObserverDateUpdate,
   onCanvasClick,
   onMilkyWayProgress,
+  milkyWayTier = "auto",
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
@@ -53,6 +55,7 @@ export default function StarSeaCanvas({
   onObserverDateUpdate?: (dateIso: string) => void;
   onCanvasClick?: () => void;
   onMilkyWayProgress?: (progress: MilkyWayProgress) => void;
+  milkyWayTier?: MilkyWayTier | "auto";
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -150,6 +153,13 @@ export default function StarSeaCanvas({
       handleRef.current.updateConstellation(selectedId);
     }
   }, [selectedId]);
+
+  // Re-run only the panorama ladder when the visitor changes the target clarity. The
+  // scene, stars and ocean stay alive; rebuilding them would reset the camera and restart
+  // every asset for what is purely a texture swap.
+  useEffect(() => {
+    handleRef.current?.setMilkyWayTarget(milkyWayTier);
+  }, [milkyWayTier]);
 
   // Helper to get shortest angular distance
   const normalizeAngle = (rad: number): number => {
