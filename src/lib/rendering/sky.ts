@@ -4,7 +4,6 @@ import type { QualitySettings } from "./quality";
 import {
   chooseMilkyWayLadder,
   loadMilkyWayTexture,
-  MILKY_WAY_TIER_ORDER,
   readNetworkHints,
   shouldClimbToTier,
   type MilkyWayProgress,
@@ -86,21 +85,12 @@ export function createSky(
   const startMilkyWayLadder = () => {
     const runId = (milkyWayRunId += 1);
     const forced = milkyWayTarget;
-    const base = chooseMilkyWayLadder({
+    const ladder = chooseMilkyWayLadder({
       viewportWidth: typeof window !== "undefined" ? window.innerWidth : 1920,
       maxTextureSize: options?.maxTextureSize ?? 4096,
       hints: readNetworkHints(),
+      forcedTier: forced === "auto" ? undefined : forced,
     });
-    // A forced tier is intersected with the adaptive ladder rather than replacing it, so
-    // the GPU limits still apply: forcing 8K on a device that cannot allocate an 8192-wide
-    // texture would fail, so the request is capped at whatever the hardware allows.
-    const ceiling =
-      forced === "auto"
-        ? MILKY_WAY_TIER_ORDER.length
-        : MILKY_WAY_TIER_ORDER.indexOf(forced);
-    const ladder = base.filter(
-      (tier) => MILKY_WAY_TIER_ORDER.indexOf(tier) < ceiling,
-    );
 
     // Throughput sample for the rung just finished. Only bandwidth-dominated transfers
     // are usable; shouldClimbToTier ignores anything smaller. Browser-reported link

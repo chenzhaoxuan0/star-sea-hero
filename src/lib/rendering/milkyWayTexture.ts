@@ -107,6 +107,16 @@ export function estimateTextureVRAM(width: number): number {
 }
 
 /**
+ * Whether the GPU can physically host a tier. This is capability, not preference: a
+ * device that cannot allocate an 8192-wide texture cannot be argued into doing so, and
+ * asking anyway only produces a failed upload.
+ */
+function canHostTier(tier: MilkyWayTier, maxTextureSize: number): boolean {
+  if (MILKY_WAY_TIER_WIDTH[tier] > maxTextureSize) return false;
+  return estimateTextureVRAM(MILKY_WAY_TIER_WIDTH[tier]) <= 256 * 1024 * 1024;
+}
+
+/**
  * Decides the maximum ladder worth attempting, smallest first.
  *
  * This runs once, before anything has been downloaded, so it may only use signals that
@@ -129,8 +139,22 @@ export function chooseMilkyWayLadder(options: {
     saveData?: boolean;
     deviceMemory?: number;
   };
+  /**
+   * An explicit request from the visitor. Preferences (data saver, link class, viewport
+   * size) are set aside because the click *is* the decision, but hardware capability is
+   * not, so a tier the GPU cannot hold is still withheld rather than attempted.
+   */
+  forcedTier?: MilkyWayTier;
 }): MilkyWayTier[] {
-  const { viewportWidth, maxTextureSize, hints = {} } = options;
+  const { viewportWidth, maxTextureSize, hints = {}, forcedTier } = options;
+
+  if (forcedTier) {
+    const ceiling = MILKY_WAY_TIER_ORDER.indexOf(forcedTier);
+    return MILKY_WAY_TIER_ORDER.slice(0, ceiling + 1).filter((tier) =>
+      canHostTier(tier, maxTextureSize),
+    );
+  }
+
   const ladder: MilkyWayTier[] = ["1k", "2k"];
 
   // Only 2G and slower are trusted as a hard stop. Chrome's effective-type
@@ -143,7 +167,7 @@ export function chooseMilkyWayLadder(options: {
     hints.effectiveType === "slow-2g" ||
     hints.effectiveType === "2g";
 
-  if (!hopelessLink && viewportWidth >= 640 && MILKY_WAY_TIER_WIDTH["4k"] <= maxTextureSize) {
+  if (!hopelessLink && viewportWidth >= 640 && canHostTier("4k", maxTextureSize)) {
     ladder.push("4k");
   }
 
@@ -156,8 +180,7 @@ export function chooseMilkyWayLadder(options: {
     ladder.includes("4k") &&
     memoryOk &&
     viewportWidth >= 1200 &&
-    MILKY_WAY_TIER_WIDTH["8k"] <= maxTextureSize &&
-    estimateTextureVRAM(MILKY_WAY_TIER_WIDTH["8k"]) <= 256 * 1024 * 1024
+    canHostTier("8k", maxTextureSize)
   ) {
     ladder.push("8k");
   }
