@@ -28,15 +28,15 @@ export const MILKY_WAY_TIER_WIDTH: Record<MilkyWayTier, number> = {
 };
 
 /**
- * Approximate encoded size of each tier, used only to decide whether climbing to the
- * next one is worth it before the request is issued. When the server reports a real
- * Content-Length the observed value is preferred over these.
+ * Exact encoded size of each tier, used to decide whether climbing to the next one is
+ * worth it before the request is issued. When the server reports a real Content-Length
+ * the observed value is preferred over these.
  */
 export const MILKY_WAY_TIER_BYTES: Record<MilkyWayTier, number> = {
-  "1k": 32 * 1024,
-  "2k": 156 * 1024,
-  "4k": 3_302_272,
-  "8k": 7_494_016,
+  "1k": 31_808,
+  "2k": 156_040,
+  "4k": 3_301_376,
+  "8k": 7_334_784,
 };
 
 /**
