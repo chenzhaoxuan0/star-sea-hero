@@ -7,6 +7,10 @@ import {
   getQualitySettings,
   type QualityLevel,
 } from "@/lib/rendering/quality";
+import {
+  readNetworkHints,
+  type MilkyWayProgress,
+} from "@/lib/rendering/milkyWayTexture";
 import { BRIGHT_STARS, createFaintStarField } from "@/data/stars";
 import { calculateMilkyWayBasis, starsToHorizon, starToHorizon } from "@/lib/astronomy/coordinates";
 import { toAstronomyObserver } from "@/lib/astronomy/observer";
@@ -34,6 +38,7 @@ export default function StarSeaCanvas({
   playSpeed = 1,
   onObserverDateUpdate,
   onCanvasClick,
+  onMilkyWayProgress,
 }: {
   onReady: () => void;
   onError: (error: unknown) => void;
@@ -47,6 +52,7 @@ export default function StarSeaCanvas({
   playSpeed?: number;
   onObserverDateUpdate?: (dateIso: string) => void;
   onCanvasClick?: () => void;
+  onMilkyWayProgress?: (progress: MilkyWayProgress) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -57,6 +63,10 @@ export default function StarSeaCanvas({
   selectedIdRef.current = selectedId;
   const onCanvasClickRef = useRef(onCanvasClick);
   onCanvasClickRef.current = onCanvasClick;
+  // Held in a ref so a new callback identity from the parent cannot tear down and
+  // rebuild the whole scene, which would restart the Milky Way ladder from 1K.
+  const onMilkyWayProgressRef = useRef(onMilkyWayProgress);
+  onMilkyWayProgressRef.current = onMilkyWayProgress;
   const waveModeRef = useRef(waveMode);
   waveModeRef.current = waveMode;
   const catalogRef = useRef<ReturnType<typeof createFaintStarField>>([]);
@@ -277,6 +287,7 @@ export default function StarSeaCanvas({
         const level: QualityLevel = chooseInitialQuality(
           window.innerWidth,
           navigator.hardwareConcurrency || 4,
+          readNetworkHints(),
         );
         const catalog = [
           ...BRIGHT_STARS,
@@ -304,6 +315,7 @@ export default function StarSeaCanvas({
           selectedIdRef.current,
           waveModeRef.current === "rippled" ? 1.0 : 0.0,
           initialMwMat,
+          { onMilkyWayProgress: onMilkyWayProgressRef.current },
         );
         handleRef.current = handle;
         if (typeof window !== "undefined") {

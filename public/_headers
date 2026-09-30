@@ -1,0 +1,16 @@
+# Cloudflare Pages / Workers static asset headers.
+#
+# Without this, Pages serves unhashed paths like /textures/*.webp with
+# `cache-control: public, max-age=0, must-revalidate`, so the multi-megabyte Milky Way
+# panorama is revalidated against the origin on every single visit. The filenames are
+# content-stable, so they can be treated as immutable.
+/textures/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The panorama is large and identical for every visitor; letting the edge keep it
+# warm is what makes a repeat visit instant.
+/textures/*.webp
+  Access-Control-Allow-Origin: *

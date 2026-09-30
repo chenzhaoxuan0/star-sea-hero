@@ -15,11 +15,18 @@ import { getOptimalObserverForConstellation } from "@/lib/astronomy/constellatio
 import StarSeaCanvas from "./StarSeaCanvas";
 import StarSeaControls from "./StarSeaControls";
 import StarSeaFallback from "./StarSeaFallback";
-import StarSeaLoading, { type StarSeaLoadingState } from "./StarSeaLoading";
+import StarSeaLoading, {
+  describeMilkyWayProgress,
+  type StarSeaLoadingState,
+  type StarSeaUpgradeProgress,
+} from "./StarSeaLoading";
+import type { MilkyWayProgress } from "@/lib/rendering/milkyWayTexture";
 
 export default function StarSeaHero() {
   const [loadingState, setLoadingState] =
     useState<StarSeaLoadingState>("interactive");
+  // Non-null only while a larger Milky Way encode streams in behind the visible one.
+  const [mwUpgrade, setMwUpgrade] = useState<StarSeaUpgradeProgress | null>(null);
   const [fallback, setFallback] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [observer, setObserver] = useState<Observer>(DEFAULT_OBSERVER);
@@ -58,6 +65,14 @@ export default function StarSeaHero() {
     console.warn("Star Sea switched to fallback:", error);
     setFallback(true);
     setLoadingState("interactive");
+  }, []);
+
+  // Byte-level progress for the progressive Milky Way ladder. Small encodes (1K/2K)
+  // land in well under a second, so this mainly reports the 4K/8K upgrade pass.
+  const handleMilkyWayProgress = useCallback((progress: MilkyWayProgress) => {
+    setMwUpgrade(
+      describeMilkyWayProgress(progress.tier, progress.phase, progress.loaded, progress.total),
+    );
   }, []);
 
   // When user selects a constellation, automatically jump to its optimal observation season and latitude
@@ -184,12 +199,13 @@ export default function StarSeaHero() {
           onCanvasClick={handleCanvasClick}
           onReady={handleReady}
           onError={handleError}
+          onMilkyWayProgress={handleMilkyWayProgress}
         />
       )}
       <div className="star-sea-vignette" />
       <div className="star-sea-grain" />
       {fallback && <StarSeaFallback />}
-      <StarSeaLoading state={loadingState} />
+      <StarSeaLoading state={loadingState} upgrade={mwUpgrade} />
 
       {/* Immersive Guidance Toast */}
       {isImmersive && immersiveNotice && (

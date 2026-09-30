@@ -1,7 +1,21 @@
 import * as THREE from "three";
 import { SkyShader } from "./shaders/skyShader";
 import type { QualitySettings } from "./quality";
+import {
+  chooseMilkyWayLadder,
+  loadMilkyWayTexture,
+  readNetworkHints,
+  type MilkyWayProgress,
+} from "./milkyWayTexture";
 import type { ConstellationDefinition, HorizonPosition, StarRecord } from "@/types/astronomy";
+
+export type SkyOptions = {
+  /** Upper bound reported by the GL implementation, used to cap anisotropy. */
+  maxAnisotropy?: number;
+  /** Upper bound reported by the GL implementation, used to cap texture size. */
+  maxTextureSize?: number;
+  onMilkyWayProgress?: (progress: MilkyWayProgress) => void;
+};
 
 export type SkyHandle = {
   skyDome: THREE.Mesh;
@@ -27,6 +41,7 @@ export function createSky(
   constellations: ConstellationDefinition[] = [],
   initialSelectedId = "",
   initialMilkyWayMatrix?: THREE.Matrix4,
+  options?: SkyOptions,
 ): SkyHandle {
   // 1. Sky Dome Mesh with smooth celestial curvature
   const skyGeometry = new THREE.SphereGeometry(500, 64, 48);
@@ -40,21 +55,47 @@ export function createSky(
     depthTest: false,
   });
 
-  // Ultra High-Resolution Astrophotography Milky Way Panorama (4K / 8K with 16x Anisotropic Filtering)
-  const textureLoader = new THREE.TextureLoader();
-  const texturePath =
-    quality.starLimit >= 1800
-      ? "/textures/milkyway_8k_eq.webp"
-      : "/textures/milkyway_4k_eq.webp";
-  const milkyWayTexture = textureLoader.load(texturePath);
-  milkyWayTexture.wrapS = THREE.RepeatWrapping;
-  milkyWayTexture.wrapT = THREE.ClampToEdgeWrapping;
-  milkyWayTexture.colorSpace = THREE.SRGBColorSpace;
-  milkyWayTexture.generateMipmaps = true;
-  milkyWayTexture.minFilter = THREE.LinearMipmapLinearFilter;
-  milkyWayTexture.magFilter = THREE.LinearFilter;
-  milkyWayTexture.anisotropy = 16;
-  skyMaterial.uniforms.uMilkyWayMap.value = milkyWayTexture;
+  // Astrophotography Milky Way panorama, delivered progressively.
+  // The smallest encode lands almost immediately so the galaxy is never missing, then
+  // each larger encode is bound as it arrives. Nothing here blocks scene construction:
+  // the dome renders stars and gradient while the panorama streams in behind them.
+  let milkyWayTexture: THREE.Texture | null = null;
+  let milkyWayDisposed = false;
+
+  const ladder = chooseMilkyWayLadder({
+    viewportWidth: typeof window !== "undefined" ? window.innerWidth : 1920,
+    maxTextureSize: options?.maxTextureSize ?? 4096,
+    hints: readNetworkHints(),
+  });
+
+  const bindMilkyWayTexture = (texture: THREE.Texture) => {
+    const previous = milkyWayTexture;
+    milkyWayTexture = texture;
+    skyMaterial.uniforms.uMilkyWayMap.value = texture;
+    previous?.dispose();
+  };
+
+  void (async () => {
+    for (const tier of ladder) {
+      if (milkyWayDisposed) return;
+      try {
+        const texture = await loadMilkyWayTexture(tier, {
+          maxAnisotropy: options?.maxAnisotropy ?? 1,
+          onProgress: options?.onMilkyWayProgress,
+        });
+        if (milkyWayDisposed) {
+          texture.dispose();
+          return;
+        }
+        bindMilkyWayTexture(texture);
+      } catch (error) {
+        // A failed tier is not fatal: keep whatever lower-resolution encode is already
+        // on screen and stop climbing rather than retrying into a dead end.
+        console.warn(`Star Sea: Milky Way ${tier} texture failed to load.`, error);
+        return;
+      }
+    }
+  })();
 
   const milkyWayMatrix = initialMilkyWayMatrix
     ? initialMilkyWayMatrix.clone()
@@ -525,7 +566,9 @@ export function createSky(
   };
 
   const dispose = () => {
-    milkyWayTexture.dispose();
+    milkyWayDisposed = true;
+    milkyWayTexture?.dispose();
+    milkyWayTexture = null;
     skyGeometry.dispose();
     skyMaterial.dispose();
     starGeometry.dispose();

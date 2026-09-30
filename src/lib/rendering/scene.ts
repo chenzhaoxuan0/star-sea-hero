@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { QualitySettings } from "./quality";
 import type { ConstellationDefinition, HorizonPosition, StarRecord } from "@/types/astronomy";
-import { createSky, type SkyHandle } from "./sky";
+import { createSky, type SkyHandle, type SkyOptions } from "./sky";
 import { createOcean, type OceanHandle } from "./ocean";
 
 export type SceneHandle = {
@@ -26,6 +26,7 @@ export function createScene(
   selectedConstellationId = "",
   initialWaveMode = 1.0,
   initialMilkyWayMatrix?: THREE.Matrix4,
+  skyOptions?: SkyOptions,
 ): SceneHandle {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -69,7 +70,18 @@ export function createScene(
   camera.lookAt(0, 0.28, -1);
 
   // 1. Sky & Celestial Layer
-  const sky: SkyHandle = createSky(quality, stars, constellations, selectedConstellationId, initialMilkyWayMatrix);
+  const sky: SkyHandle = createSky(
+    quality,
+    stars,
+    constellations,
+    selectedConstellationId,
+    initialMilkyWayMatrix,
+    {
+      maxAnisotropy: renderer.capabilities.getMaxAnisotropy(),
+      maxTextureSize: renderer.capabilities.maxTextureSize,
+      onMilkyWayProgress: skyOptions?.onMilkyWayProgress,
+    },
+  );
   if (initialMilkyWayMatrix) {
     sky.updateMilkyWay(initialMilkyWayMatrix);
   }
